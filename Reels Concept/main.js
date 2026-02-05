@@ -82,6 +82,7 @@ let currentPillar = 'all';
 let currentCategory = 'all';
 let showEnergyHeight = true;
 let currentProfile = 'default';
+let currentDataType = 'activities'; // activities, reflections, energy
 
 const profiles = {
   default: {
@@ -242,31 +243,55 @@ function normalizeData(rawData, profile) {
       };
     });
   }
-  // Default format - already normalized
-  return rawData;
+  // Default format - fix pillars based on category
+  return rawData.map(item => ({
+    ...item,
+    pillar: getPillarForCategory(item.category)
+  }));
 }
 
 // Map categories to pillars
 function getPillarForCategory(category) {
   const pillarMap = {
+    // Rest
     'overnight': 'rest',
     'nap': 'rest',
+    'sleep': 'rest',
+    // Life
     'personal care': 'life',
     'meal': 'life',
+    'meal prep': 'life',
+    'cooking': 'life',
     'chores': 'life',
     'cleaning': 'life',
     'shopping': 'life',
+    'errands': 'life',
+    'socializing': 'life',
+    'family': 'life',
+    'friends': 'life',
+    'travel': 'life',
+    'entertainment': 'life',
+    // Growth
     'exercise': 'growth',
+    'gym': 'growth',
+    'running': 'growth',
+    'yoga': 'growth',
     'meditation': 'growth',
     'learning': 'growth',
+    'reading': 'growth',
     'hobbies': 'growth',
     'quiet time': 'growth',
-    'meeting': 'work',
-    'finances': 'work',
-    'socializing': 'life',
-    'travel': 'life',
     'church': 'growth',
-    'entertainment': 'life'
+    // Work
+    'meeting': 'work',
+    'meetings': 'work',
+    'calls': 'work',
+    'finances': 'work',
+    'admin': 'work',
+    'email': 'work',
+    'planning': 'work',
+    'deep work': 'work',
+    'review': 'work'
   };
   return pillarMap[category.toLowerCase()] || 'life';
 }
@@ -738,6 +763,1045 @@ function renderAllYearsView() {
   updatePeriodLabel(`All Years (${years[0]}–${years[years.length - 1]})`);
 }
 
+// ==================== REFLECTIONS BUBBLE CHART ====================
+function renderReflectionsBubbleChart() {
+  const reflections = Object.values(reflectionsData);
+
+  // Aggregate by tags
+  const tagCounts = {};
+  const tagMoods = {};
+
+  reflections.forEach(r => {
+    r.tags.forEach(tag => {
+      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      if (!tagMoods[tag]) tagMoods[tag] = {};
+      tagMoods[tag][r.mood] = (tagMoods[tag][r.mood] || 0) + 1;
+    });
+  });
+
+  // Also aggregate by mood
+  const moodCounts = {};
+  reflections.forEach(r => {
+    moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
+  });
+
+  // Create bubble data
+  const tagBubbles = Object.entries(tagCounts).map(([tag, count]) => ({
+    label: tag,
+    count,
+    type: 'tag',
+    dominantMood: Object.entries(tagMoods[tag]).sort((a, b) => b[1] - a[1])[0]?.[0] || 'content'
+  }));
+
+  const moodBubbles = Object.entries(moodCounts).map(([mood, count]) => ({
+    label: mood,
+    count,
+    type: 'mood',
+    dominantMood: mood
+  }));
+
+  const maxCount = Math.max(...tagBubbles.map(b => b.count), ...moodBubbles.map(b => b.count));
+
+  container.innerHTML = `
+    <div class="bubble-chart-container">
+      <div class="bubble-section">
+        <h3 class="bubble-section-title">Reflection Themes</h3>
+        <div class="bubble-grid" id="tag-bubbles"></div>
+      </div>
+      <div class="bubble-section">
+        <h3 class="bubble-section-title">Moods</h3>
+        <div class="bubble-grid" id="mood-bubbles"></div>
+      </div>
+    </div>
+  `;
+
+  const tagContainer = document.getElementById('tag-bubbles');
+  const moodContainer = document.getElementById('mood-bubbles');
+
+  // Render tag bubbles
+  tagBubbles.sort((a, b) => b.count - a.count).forEach(bubble => {
+    const size = 60 + (bubble.count / maxCount) * 140;
+    const color = moodColors[bubble.dominantMood] || '#888';
+
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.background = `radial-gradient(circle at 30% 30%, ${color}dd, ${color}88)`;
+
+    el.innerHTML = `
+      <span class="bubble-count">${bubble.count}</span>
+      <span class="bubble-label">${bubble.label}</span>
+    `;
+
+    el.addEventListener('mouseenter', (e) => {
+      tooltip.innerHTML = `
+        <div class="tooltip-title">${bubble.label}</div>
+        <div class="tooltip-meta">${bubble.count} reflections</div>
+        <div style="margin-top: 8px; font-size: 11px; color: #888;">Dominant mood: ${bubble.dominantMood}</div>
+      `;
+      tooltip.classList.add('visible');
+      moveTooltip(e);
+    });
+    el.addEventListener('mousemove', moveTooltip);
+    el.addEventListener('mouseleave', hideTooltip);
+
+    tagContainer.appendChild(el);
+  });
+
+  // Render mood bubbles
+  moodBubbles.sort((a, b) => b.count - a.count).forEach(bubble => {
+    const size = 60 + (bubble.count / maxCount) * 140;
+    const color = moodColors[bubble.label] || '#888';
+
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.background = `radial-gradient(circle at 30% 30%, ${color}dd, ${color}88)`;
+
+    el.innerHTML = `
+      <span class="bubble-count">${bubble.count}</span>
+      <span class="bubble-label">${bubble.label}</span>
+    `;
+
+    el.addEventListener('mouseenter', (e) => {
+      const percentage = ((bubble.count / reflections.length) * 100).toFixed(1);
+      tooltip.innerHTML = `
+        <div class="tooltip-title" style="text-transform: capitalize;">${bubble.label}</div>
+        <div class="tooltip-meta">${bubble.count} days (${percentage}%)</div>
+      `;
+      tooltip.classList.add('visible');
+      moveTooltip(e);
+    });
+    el.addEventListener('mousemove', moveTooltip);
+    el.addEventListener('mouseleave', hideTooltip);
+
+    moodContainer.appendChild(el);
+  });
+
+  updatePeriodLabel(`Reflections – ${reflections.length} entries`);
+}
+
+// ==================== ACTIVITY REFLECTIONS BUBBLE (D3 Circle Pack with Drill-down) ====================
+
+// State for drill-down navigation
+let bubbleNavStack = [];
+
+function renderActivityReflectionsBubble() {
+  // Reset navigation stack
+  bubbleNavStack = [];
+
+  // Build hierarchical data from reflections
+  const hierarchyData = buildReflectionHierarchy();
+
+  // Render the top-level packed circles
+  renderPackedCircles(hierarchyData, 'All Reflections');
+}
+
+// Extract keywords/phrases from reflection text
+function extractKeywords(text) {
+  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'it', 'its', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'they', 'them', 'their', 'what', 'which', 'who', 'whom', 'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about', 'after', 'before', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'through', 'during', 'into', 'really', 'today', 'felt', 'feeling', 'feel', 'got', 'get', 'went', 'going', 'go', 'made', 'make', 'day', 'time', 'good', 'great', 'nice', 'bit', 'lot', 'much', 'many', 'well', 'back', 'still', 'even', 'though', 'being']);
+
+  // Clean and tokenize
+  const words = text.toLowerCase()
+    .replace(/[^\w\s'-]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w) && !/^\d+$/.test(w));
+
+  return words;
+}
+
+// Theme keywords for categorization
+const themeKeywords = {
+  'productivity': ['productive', 'accomplished', 'efficient', 'focused', 'completed', 'progress', 'work', 'task', 'project', 'deadline', 'finished'],
+  'wellbeing': ['relaxed', 'peaceful', 'calm', 'refreshed', 'energized', 'healthy', 'rest', 'sleep', 'recovery', 'tired'],
+  'growth': ['learned', 'learning', 'growth', 'improved', 'development', 'practice', 'skill', 'knowledge', 'understanding', 'insight'],
+  'connection': ['friend', 'family', 'team', 'together', 'connection', 'relationship', 'conversation', 'social', 'people', 'meeting'],
+  'creativity': ['creative', 'inspired', 'ideas', 'artistic', 'innovative', 'imagination', 'design', 'create', 'art'],
+  'challenge': ['difficult', 'challenging', 'struggle', 'hard', 'obstacle', 'problem', 'issue', 'stress', 'frustrating'],
+  'gratitude': ['grateful', 'thankful', 'appreciate', 'blessed', 'fortunate', 'happy', 'joy', 'wonderful'],
+  'achievement': ['success', 'achieved', 'milestone', 'goal', 'accomplished', 'proud', 'win', 'breakthrough'],
+  'mindfulness': ['present', 'mindful', 'meditation', 'awareness', 'conscious', 'intentional', 'moment', 'breathe'],
+  'balance': ['balance', 'routine', 'rhythm', 'consistency', 'discipline', 'habit', 'schedule', 'structured'],
+  'exercise': ['workout', 'exercise', 'gym', 'run', 'running', 'fitness', 'training', 'sweat', 'strength'],
+  'planning': ['plan', 'planning', 'organize', 'prepared', 'strategy', 'review', 'reflection', 'thinking']
+};
+
+// Map keywords to themes
+function getThemeForKeyword(keyword) {
+  for (const [theme, keywords] of Object.entries(themeKeywords)) {
+    if (keywords.some(kw => keyword.includes(kw) || kw.includes(keyword))) {
+      return theme;
+    }
+  }
+  return 'general';
+}
+
+// Build hierarchical data structure
+function buildReflectionHierarchy() {
+  const reflectionsWithText = filteredData.filter(item => item.reflection);
+  const totalReflections = reflectionsWithText.length;
+
+  // Count keyword occurrences and group reflections
+  const keywordData = {};
+
+  reflectionsWithText.forEach(item => {
+    const keywords = extractKeywords(item.reflection);
+    const uniqueKeywords = [...new Set(keywords)];
+
+    uniqueKeywords.forEach(keyword => {
+      if (!keywordData[keyword]) {
+        keywordData[keyword] = {
+          count: 0,
+          reflections: [],
+          themes: {}
+        };
+      }
+      keywordData[keyword].count++;
+      keywordData[keyword].reflections.push({
+        text: item.reflection,
+        category: item.category,
+        energy: item.energyRating,
+        date: item.start
+      });
+
+      // Track theme association
+      const theme = getThemeForKeyword(keyword);
+      keywordData[keyword].themes[theme] = (keywordData[keyword].themes[theme] || 0) + 1;
+    });
+  });
+
+  // Filter to top keywords (at least 3 occurrences, max 30 keywords)
+  const topKeywords = Object.entries(keywordData)
+    .filter(([kw, data]) => data.count >= 3)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 30);
+
+  // Group by primary theme
+  const themeGroups = {};
+
+  topKeywords.forEach(([keyword, data]) => {
+    // Find dominant theme
+    const dominantTheme = Object.entries(data.themes)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] || 'general';
+
+    if (!themeGroups[dominantTheme]) {
+      themeGroups[dominantTheme] = {
+        name: dominantTheme,
+        count: 0,
+        keywords: []
+      };
+    }
+
+    themeGroups[dominantTheme].count += data.count;
+    themeGroups[dominantTheme].keywords.push({
+      name: keyword,
+      count: data.count,
+      reflections: data.reflections
+    });
+  });
+
+  return {
+    name: 'root',
+    totalReflections,
+    children: Object.values(themeGroups)
+      .filter(g => g.keywords.length > 0)
+      .sort((a, b) => b.count - a.count)
+  };
+}
+
+// Theme colors
+const themeColors = {
+  'productivity': '#4a9eff',
+  'wellbeing': '#50c878',
+  'growth': '#ffaa50',
+  'connection': '#f7c59f',
+  'creativity': '#e8a87c',
+  'challenge': '#e07070',
+  'gratitude': '#a8d5ba',
+  'achievement': '#f6c065',
+  'mindfulness': '#b8d4e8',
+  'balance': '#c9b1ff',
+  'exercise': '#85dcb8',
+  'planning': '#82b4e5',
+  'general': '#888888'
+};
+
+// Render packed circles using D3
+function renderPackedCircles(data, title, level = 0) {
+  const totalReflections = filteredData.filter(i => i.reflection).length;
+
+  // Container setup
+  container.innerHTML = `
+    <div class="packed-bubble-container">
+      <div class="packed-bubble-header">
+        ${bubbleNavStack.length > 0 ? `<button class="bubble-back-btn" id="bubble-back">← Back</button>` : ''}
+        <h3 class="packed-bubble-title">${title}</h3>
+        <span class="packed-bubble-count">${totalReflections} total reflections</span>
+      </div>
+      <div class="packed-bubble-breadcrumb" id="breadcrumb"></div>
+      <svg id="packed-circles" class="packed-circles-svg"></svg>
+    </div>
+  `;
+
+  // Breadcrumb
+  const breadcrumb = document.getElementById('breadcrumb');
+  if (bubbleNavStack.length > 0) {
+    breadcrumb.innerHTML = bubbleNavStack.map((item, i) =>
+      `<span class="breadcrumb-item" data-index="${i}">${item.title}</span>`
+    ).join(' → ') + ` → <span class="breadcrumb-current">${title}</span>`;
+
+    breadcrumb.querySelectorAll('.breadcrumb-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const index = parseInt(el.dataset.index);
+        const navItem = bubbleNavStack[index];
+        bubbleNavStack = bubbleNavStack.slice(0, index);
+        renderPackedCircles(navItem.data, navItem.title, index);
+      });
+    });
+  }
+
+  // Back button
+  if (bubbleNavStack.length > 0) {
+    document.getElementById('bubble-back').addEventListener('click', () => {
+      const prev = bubbleNavStack.pop();
+      if (bubbleNavStack.length === 0) {
+        renderActivityReflectionsBubble();
+      } else {
+        const current = bubbleNavStack.pop();
+        renderPackedCircles(current.data, current.title, bubbleNavStack.length);
+      }
+    });
+  }
+
+  const svg = d3.select('#packed-circles');
+  const width = container.offsetWidth - 40;
+  const height = Math.max(500, window.innerHeight - 280);
+
+  svg.attr('width', width).attr('height', height);
+
+  // Check if this is the reflections level (leaf nodes)
+  if (data.reflections) {
+    renderReflectionsList(data.reflections, title);
+    return;
+  }
+
+  // Prepare hierarchy data for D3
+  let hierarchyRoot;
+
+  if (data.children) {
+    // Theme level or keyword level
+    hierarchyRoot = {
+      name: data.name,
+      children: data.children.map(child => ({
+        name: child.name,
+        value: child.count || child.reflections?.length || 1,
+        data: child
+      }))
+    };
+  } else if (data.keywords) {
+    // Keywords within a theme
+    hierarchyRoot = {
+      name: data.name,
+      children: data.keywords.map(kw => ({
+        name: kw.name,
+        value: kw.count,
+        data: kw
+      }))
+    };
+  } else {
+    return;
+  }
+
+  // Create pack layout
+  const root = d3.hierarchy(hierarchyRoot)
+    .sum(d => d.value || 0)
+    .sort((a, b) => b.value - a.value);
+
+  const pack = d3.pack()
+    .size([width - 20, height - 20])
+    .padding(8);
+
+  pack(root);
+
+  // Draw circles
+  const nodes = root.descendants().slice(1); // Skip root
+
+  const nodeGroups = svg.selectAll('g.node')
+    .data(nodes)
+    .enter()
+    .append('g')
+    .attr('class', 'node')
+    .attr('transform', d => `translate(${d.x + 10}, ${d.y + 10})`);
+
+  // Circles
+  nodeGroups.append('circle')
+    .attr('r', 0)
+    .attr('fill', d => {
+      const name = d.data.name;
+      if (themeColors[name]) return themeColors[name];
+      // For keywords, use parent theme color or derive
+      const parentTheme = d.parent?.data?.name;
+      if (parentTheme && themeColors[parentTheme]) {
+        return themeColors[parentTheme];
+      }
+      return '#5a6a7a';
+    })
+    .attr('fill-opacity', 0.7)
+    .attr('stroke', '#222')
+    .attr('stroke-width', 2)
+    .style('cursor', 'pointer')
+    .transition()
+    .duration(500)
+    .delay((d, i) => i * 20)
+    .attr('r', d => d.r);
+
+  // Labels
+  nodeGroups.append('text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '-0.2em')
+    .attr('fill', '#fff')
+    .attr('font-family', "'Helvetica Neue', Helvetica, Arial, sans-serif")
+    .attr('font-size', d => Math.min(d.r / 3, 16))
+    .attr('font-weight', '500')
+    .attr('pointer-events', 'none')
+    .text(d => {
+      const name = d.data.name;
+      const maxChars = Math.floor(d.r / 4);
+      return name.length > maxChars ? name.substring(0, maxChars) + '...' : name;
+    })
+    .style('opacity', 0)
+    .transition()
+    .duration(500)
+    .delay((d, i) => i * 20 + 300)
+    .style('opacity', 1);
+
+  // Count labels
+  nodeGroups.append('text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '1.2em')
+    .attr('fill', '#ccc')
+    .attr('font-family', "'Helvetica Neue', Helvetica, Arial, sans-serif")
+    .attr('font-size', d => Math.min(d.r / 4, 14))
+    .attr('pointer-events', 'none')
+    .text(d => d.value)
+    .style('opacity', 0)
+    .transition()
+    .duration(500)
+    .delay((d, i) => i * 20 + 300)
+    .style('opacity', 1);
+
+  // Interactions
+  nodeGroups
+    .on('mouseenter', function(event, d) {
+      d3.select(this).select('circle')
+        .transition()
+        .duration(200)
+        .attr('fill-opacity', 0.9)
+        .attr('stroke-width', 3);
+
+      const nodeData = d.data.data;
+      let tooltipContent = `
+        <div class="tooltip-title" style="text-transform: capitalize;">${d.data.name}</div>
+        <div class="tooltip-meta">${d.value} occurrences</div>
+      `;
+
+      if (nodeData?.reflections?.length > 0) {
+        const sample = nodeData.reflections[0];
+        tooltipContent += `<div style="margin-top: 8px; font-style: italic; color: #aaa; font-size: 11px; max-width: 250px;">"${sample.text.substring(0, 100)}${sample.text.length > 100 ? '...' : ''}"</div>`;
+      }
+
+      if (nodeData?.keywords?.length > 0) {
+        tooltipContent += `<div style="margin-top: 8px; font-size: 11px; color: #888;">Contains ${nodeData.keywords.length} keywords</div>`;
+      }
+
+      tooltipContent += `<div style="margin-top: 8px; font-size: 10px; color: #666;">Click to explore</div>`;
+
+      tooltip.innerHTML = tooltipContent;
+      tooltip.classList.add('visible');
+      moveTooltip(event);
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function() {
+      d3.select(this).select('circle')
+        .transition()
+        .duration(200)
+        .attr('fill-opacity', 0.7)
+        .attr('stroke-width', 2);
+      hideTooltip();
+    })
+    .on('click', function(event, d) {
+      const nodeData = d.data.data;
+
+      if (nodeData) {
+        // Save current state to stack
+        bubbleNavStack.push({ data, title });
+
+        if (nodeData.keywords) {
+          // Theme level -> show keywords
+          renderPackedCircles(nodeData, d.data.name, level + 1);
+        } else if (nodeData.reflections) {
+          // Keyword level -> show reflections list
+          renderPackedCircles(nodeData, d.data.name, level + 1);
+        }
+      }
+    });
+
+  updatePeriodLabel(`Reflections – ${title}`);
+}
+
+// Render list of individual reflections
+function renderReflectionsList(reflections, keyword) {
+  container.innerHTML = `
+    <div class="packed-bubble-container">
+      <div class="packed-bubble-header">
+        <button class="bubble-back-btn" id="bubble-back">← Back</button>
+        <h3 class="packed-bubble-title">Reflections containing "${keyword}"</h3>
+        <span class="packed-bubble-count">${reflections.length} reflections</span>
+      </div>
+      <div class="packed-bubble-breadcrumb" id="breadcrumb"></div>
+      <div class="reflections-list" id="reflections-list"></div>
+    </div>
+  `;
+
+  // Breadcrumb
+  const breadcrumb = document.getElementById('breadcrumb');
+  if (bubbleNavStack.length > 0) {
+    breadcrumb.innerHTML = bubbleNavStack.map((item, i) =>
+      `<span class="breadcrumb-item" data-index="${i}">${item.title}</span>`
+    ).join(' → ') + ` → <span class="breadcrumb-current">${keyword}</span>`;
+
+    breadcrumb.querySelectorAll('.breadcrumb-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const index = parseInt(el.dataset.index);
+        const navItem = bubbleNavStack[index];
+        bubbleNavStack = bubbleNavStack.slice(0, index);
+        renderPackedCircles(navItem.data, navItem.title, index);
+      });
+    });
+  }
+
+  // Back button
+  document.getElementById('bubble-back').addEventListener('click', () => {
+    const prev = bubbleNavStack.pop();
+    if (prev) {
+      renderPackedCircles(prev.data, prev.title, bubbleNavStack.length);
+    } else {
+      renderActivityReflectionsBubble();
+    }
+  });
+
+  // Render reflections
+  const list = document.getElementById('reflections-list');
+
+  reflections.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(ref => {
+    const date = new Date(ref.date);
+    const dateStr = date.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    });
+    const categoryColor = getCategoryColor(ref.category, 'life');
+    const energyHue = ref.energy * 12;
+
+    const card = document.createElement('div');
+    card.className = 'reflection-list-item';
+    card.innerHTML = `
+      <div class="reflection-list-meta">
+        <span class="reflection-list-date">${dateStr}</span>
+        <span class="reflection-list-category" style="background: ${categoryColor}">${ref.category}</span>
+        <span class="reflection-list-energy" style="color: hsl(${energyHue}, 70%, 50%)">Energy: ${ref.energy}/10</span>
+      </div>
+      <div class="reflection-list-text">"${ref.text}"</div>
+    `;
+    list.appendChild(card);
+  });
+
+  updatePeriodLabel(`"${keyword}" – ${reflections.length} reflections`);
+}
+
+// ==================== ACTIVITY REFLECTIONS TREEMAP ====================
+function renderActivityReflectionsTreemap() {
+  // Group reflections by category and then by pillar
+  const pillarData = {};
+
+  filteredData.forEach(item => {
+    if (!item.reflection) return;
+
+    const pillar = item.pillar || getPillarForCategory(item.category);
+    const category = item.category.toLowerCase();
+
+    if (!pillarData[pillar]) {
+      pillarData[pillar] = { total: 0, categories: {} };
+    }
+    pillarData[pillar].total++;
+
+    if (!pillarData[pillar].categories[category]) {
+      pillarData[pillar].categories[category] = { count: 0, reflections: [], totalEnergy: 0 };
+    }
+    pillarData[pillar].categories[category].count++;
+    pillarData[pillar].categories[category].reflections.push(item.reflection);
+    pillarData[pillar].categories[category].totalEnergy += item.energyRating;
+  });
+
+  const totalReflections = filteredData.filter(i => i.reflection).length;
+
+  const pillarColors = {
+    'work': '#4a9eff',
+    'life': '#50c878',
+    'growth': '#ffaa50',
+    'rest': '#b482ff'
+  };
+
+  container.innerHTML = `
+    <div class="treemap-container">
+      <div class="treemap-title">Reflections by Category (${totalReflections} total)</div>
+      <div class="treemap" id="treemap"></div>
+    </div>
+  `;
+
+  const treemap = document.getElementById('treemap');
+
+  // Sort pillars by total count
+  const sortedPillars = Object.entries(pillarData)
+    .sort((a, b) => b[1].total - a[1].total);
+
+  sortedPillars.forEach(([pillar, data]) => {
+    const pillarPercent = (data.total / totalReflections) * 100;
+    const pillarColor = pillarColors[pillar] || '#888';
+
+    const pillarEl = document.createElement('div');
+    pillarEl.className = 'treemap-pillar';
+    pillarEl.style.flex = data.total;
+
+    // Pillar header
+    const pillarHeader = document.createElement('div');
+    pillarHeader.className = 'treemap-pillar-header';
+    pillarHeader.style.background = pillarColor;
+    pillarHeader.innerHTML = `
+      <span class="treemap-pillar-name">${pillar}</span>
+      <span class="treemap-pillar-count">${data.total} (${pillarPercent.toFixed(0)}%)</span>
+    `;
+    pillarEl.appendChild(pillarHeader);
+
+    // Categories within pillar
+    const categoriesEl = document.createElement('div');
+    categoriesEl.className = 'treemap-categories';
+
+    const sortedCategories = Object.entries(data.categories)
+      .sort((a, b) => b[1].count - a[1].count);
+
+    sortedCategories.forEach(([category, catData]) => {
+      const catPercent = (catData.count / data.total) * 100;
+      const avgEnergy = catData.totalEnergy / catData.count;
+      const categoryColor = getCategoryColor(category, pillar);
+
+      const catEl = document.createElement('div');
+      catEl.className = 'treemap-category';
+      catEl.style.flex = catData.count;
+      catEl.style.background = categoryColor;
+
+      catEl.innerHTML = `
+        <span class="treemap-cat-name">${category}</span>
+        <span class="treemap-cat-count">${catData.count}</span>
+      `;
+
+      catEl.addEventListener('mouseenter', (e) => {
+        tooltip.innerHTML = `
+          <div class="tooltip-title" style="text-transform: capitalize;">${category}</div>
+          <div class="tooltip-meta">${catData.count} reflections (${catPercent.toFixed(1)}% of ${pillar})</div>
+          <div class="tooltip-energy">Avg Energy: ${avgEnergy.toFixed(1)}/10</div>
+          <div style="margin-top: 8px; font-style: italic; color: #aaa; font-size: 11px; max-width: 280px;">"${catData.reflections[0]}"</div>
+        `;
+        tooltip.classList.add('visible');
+        moveTooltip(e);
+      });
+      catEl.addEventListener('mousemove', moveTooltip);
+      catEl.addEventListener('mouseleave', hideTooltip);
+
+      categoriesEl.appendChild(catEl);
+    });
+
+    pillarEl.appendChild(categoriesEl);
+    treemap.appendChild(pillarEl);
+  });
+
+  updatePeriodLabel(`Reflection Treemap – ${totalReflections} entries`);
+}
+
+// ==================== ACTIVITY REFLECTIONS CALENDAR ====================
+function renderActivityReflectionsCalendar() {
+  const months = getUniqueMonths(filteredData);
+
+  container.innerHTML = `
+    <div class="reflections-calendar-container">
+      <div class="reflections-calendar" id="reflections-calendar"></div>
+    </div>
+  `;
+
+  const calendar = document.getElementById('reflections-calendar');
+
+  months.forEach(monthKey => {
+    const [year, month] = monthKey.split('-').map(Number);
+    const monthStart = new Date(year, month - 1, 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDay = monthStart.getDay();
+
+    const monthEl = document.createElement('div');
+    monthEl.className = 'calendar-month';
+
+    monthEl.innerHTML = `
+      <div class="calendar-month-title">${monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+      <div class="calendar-grid" id="cal-${monthKey}"></div>
+    `;
+
+    calendar.appendChild(monthEl);
+
+    const grid = document.getElementById(`cal-${monthKey}`);
+
+    // Empty cells for padding
+    for (let i = 0; i < startDay; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'calendar-day empty';
+      grid.appendChild(empty);
+    }
+
+    // Days
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dayActivities = filteredData.filter(item => getDayKey(item.start) === dateStr && item.reflection);
+
+      const dayEl = document.createElement('div');
+      dayEl.className = 'calendar-day';
+
+      if (dayActivities.length > 0) {
+        // Color based on average energy
+        const avgEnergy = dayActivities.reduce((s, a) => s + a.energyRating, 0) / dayActivities.length;
+        const hue = avgEnergy * 12;
+        dayEl.style.background = `hsl(${hue}, 60%, 40%)`;
+        dayEl.classList.add('has-reflection');
+
+        dayEl.addEventListener('mouseenter', (e) => {
+          const reflectionList = dayActivities.slice(0, 3).map(a =>
+            `<div style="margin-top: 6px; font-size: 11px;"><strong style="color: ${getCategoryColor(a.category, a.pillar)}">${a.category}:</strong> <em style="color: #aaa;">"${a.reflection.substring(0, 80)}${a.reflection.length > 80 ? '...' : ''}"</em></div>`
+          ).join('');
+
+          tooltip.innerHTML = `
+            <div class="tooltip-title">${new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+            <div class="tooltip-meta">${dayActivities.length} reflections</div>
+            <div class="tooltip-energy">Avg Energy: ${avgEnergy.toFixed(1)}/10</div>
+            ${reflectionList}
+            ${dayActivities.length > 3 ? `<div style="margin-top: 6px; color: #666; font-size: 10px;">+${dayActivities.length - 3} more...</div>` : ''}
+          `;
+          tooltip.classList.add('visible');
+          moveTooltip(e);
+        });
+        dayEl.addEventListener('mousemove', moveTooltip);
+        dayEl.addEventListener('mouseleave', hideTooltip);
+      }
+
+      dayEl.innerHTML = `<span>${d}</span>`;
+      grid.appendChild(dayEl);
+    }
+  });
+
+  const totalReflections = filteredData.filter(i => i.reflection).length;
+  updatePeriodLabel(`Reflections Calendar – ${totalReflections} entries`);
+}
+
+// ==================== REFLECTIONS CALENDAR ====================
+function renderReflectionsCalendar() {
+  const reflections = Object.values(reflectionsData);
+  const months = [...new Set(reflections.map(r => r.date.substring(0, 7)))].sort();
+
+  container.innerHTML = `
+    <div class="reflections-calendar-container">
+      <div class="reflections-calendar" id="reflections-calendar"></div>
+    </div>
+  `;
+
+  const calendar = document.getElementById('reflections-calendar');
+
+  months.forEach(monthKey => {
+    const [year, month] = monthKey.split('-').map(Number);
+    const monthStart = new Date(year, month - 1, 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDay = monthStart.getDay();
+
+    const monthEl = document.createElement('div');
+    monthEl.className = 'calendar-month';
+
+    monthEl.innerHTML = `
+      <div class="calendar-month-title">${monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+      <div class="calendar-grid" id="cal-${monthKey}"></div>
+    `;
+
+    calendar.appendChild(monthEl);
+
+    const grid = document.getElementById(`cal-${monthKey}`);
+
+    // Empty cells for padding
+    for (let i = 0; i < startDay; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'calendar-day empty';
+      grid.appendChild(empty);
+    }
+
+    // Days
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const reflection = reflectionsData[dateStr];
+
+      const dayEl = document.createElement('div');
+      dayEl.className = 'calendar-day';
+
+      if (reflection) {
+        const color = moodColors[reflection.mood] || '#888';
+        dayEl.style.background = color;
+        dayEl.classList.add('has-reflection');
+
+        dayEl.addEventListener('mouseenter', (e) => {
+          tooltip.innerHTML = `
+            <div class="tooltip-title">${reflection.dayOfWeek}, ${new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+            <div class="tooltip-mood" style="color: ${color}; text-transform: capitalize;">${reflection.mood}</div>
+            <div style="margin-top: 8px; font-style: italic; color: #aaa; font-size: 12px;">"${reflection.reflection}"</div>
+          `;
+          tooltip.classList.add('visible');
+          moveTooltip(e);
+        });
+        dayEl.addEventListener('mousemove', moveTooltip);
+        dayEl.addEventListener('mouseleave', hideTooltip);
+      }
+
+      dayEl.innerHTML = `<span>${d}</span>`;
+      grid.appendChild(dayEl);
+    }
+  });
+
+  updatePeriodLabel(`Reflections Calendar – ${reflections.length} entries`);
+}
+
+// ==================== ENERGY HEATMAP ====================
+function renderEnergyHeatmap() {
+  // Group energy by day of week and hour
+  const heatmapData = {};
+
+  filteredData.forEach(item => {
+    const start = new Date(item.start);
+    const dayOfWeek = start.getDay();
+    const hour = start.getHours();
+    const key = `${dayOfWeek}-${hour}`;
+
+    if (!heatmapData[key]) {
+      heatmapData[key] = { total: 0, count: 0 };
+    }
+    heatmapData[key].total += item.energyRating;
+    heatmapData[key].count += 1;
+  });
+
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  container.innerHTML = `
+    <div class="heatmap-container">
+      <div class="heatmap-title">Average Energy by Day & Hour</div>
+      <div class="heatmap" id="energy-heatmap">
+        <div class="heatmap-y-labels">
+          ${days.map(d => `<div class="heatmap-y-label">${d}</div>`).join('')}
+        </div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+        <div class="heatmap-x-labels">
+          ${[0, 3, 6, 9, 12, 15, 18, 21].map(h => `<div class="heatmap-x-label">${h === 0 ? '12a' : h === 12 ? '12p' : h < 12 ? h + 'a' : (h-12) + 'p'}</div>`).join('')}
+        </div>
+      </div>
+      <div class="heatmap-legend">
+        <span>Low Energy</span>
+        <div class="heatmap-legend-gradient"></div>
+        <span>High Energy</span>
+      </div>
+    </div>
+  `;
+
+  const grid = document.getElementById('heatmap-grid');
+
+  for (let day = 0; day < 7; day++) {
+    const row = document.createElement('div');
+    row.className = 'heatmap-row';
+
+    for (let hour = 0; hour < 24; hour++) {
+      const key = `${day}-${hour}`;
+      const data = heatmapData[key];
+      const avgEnergy = data ? data.total / data.count : 0;
+
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+
+      if (data) {
+        // Color scale from blue (low) to green (medium) to yellow (high)
+        const hue = avgEnergy * 12; // 0-120 (red to green)
+        const saturation = 60 + avgEnergy * 4;
+        const lightness = 20 + avgEnergy * 3;
+        cell.style.background = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+        cell.addEventListener('mouseenter', (e) => {
+          tooltip.innerHTML = `
+            <div class="tooltip-title">${days[day]} at ${hour === 0 ? '12am' : hour === 12 ? '12pm' : hour < 12 ? hour + 'am' : (hour-12) + 'pm'}</div>
+            <div class="tooltip-energy">Avg Energy: ${avgEnergy.toFixed(1)}/10</div>
+            <div class="tooltip-meta">${data.count} activities</div>
+          `;
+          tooltip.classList.add('visible');
+          moveTooltip(e);
+        });
+        cell.addEventListener('mousemove', moveTooltip);
+        cell.addEventListener('mouseleave', hideTooltip);
+      }
+
+      row.appendChild(cell);
+    }
+
+    grid.appendChild(row);
+  }
+
+  updatePeriodLabel('Energy Heatmap');
+}
+
+// ==================== ENERGY TRENDS ====================
+function renderEnergyTrends() {
+  // Group by month
+  const monthlyEnergy = {};
+
+  filteredData.forEach(item => {
+    const monthKey = getMonthKey(new Date(item.start));
+    if (!monthlyEnergy[monthKey]) {
+      monthlyEnergy[monthKey] = { total: 0, count: 0 };
+    }
+    monthlyEnergy[monthKey].total += item.energyRating;
+    monthlyEnergy[monthKey].count += 1;
+  });
+
+  const months = Object.keys(monthlyEnergy).sort();
+  const avgData = months.map(m => ({
+    month: m,
+    avg: monthlyEnergy[m].total / monthlyEnergy[m].count,
+    count: monthlyEnergy[m].count
+  }));
+
+  const maxAvg = Math.max(...avgData.map(d => d.avg));
+  const minAvg = Math.min(...avgData.map(d => d.avg));
+
+  container.innerHTML = `
+    <div class="trends-container">
+      <div class="trends-title">Energy Trends Over Time</div>
+      <div class="trends-chart" id="trends-chart"></div>
+      <div class="trends-legend">
+        <div class="trends-stat">
+          <span class="trends-stat-value">${(avgData.reduce((s, d) => s + d.avg, 0) / avgData.length).toFixed(1)}</span>
+          <span class="trends-stat-label">Avg Energy</span>
+        </div>
+        <div class="trends-stat">
+          <span class="trends-stat-value">${maxAvg.toFixed(1)}</span>
+          <span class="trends-stat-label">Peak</span>
+        </div>
+        <div class="trends-stat">
+          <span class="trends-stat-value">${minAvg.toFixed(1)}</span>
+          <span class="trends-stat-label">Low</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const chart = document.getElementById('trends-chart');
+  const chartHeight = 200;
+  const barWidth = Math.max(100 / avgData.length, 2);
+
+  avgData.forEach((data, i) => {
+    const height = ((data.avg - 0) / 10) * chartHeight;
+    const hue = data.avg * 12;
+
+    const bar = document.createElement('div');
+    bar.className = 'trends-bar';
+    bar.style.width = `${barWidth}%`;
+    bar.style.height = `${height}px`;
+    bar.style.background = `hsl(${hue}, 70%, 45%)`;
+
+    const [year, month] = data.month.split('-');
+    const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+
+    bar.addEventListener('mouseenter', (e) => {
+      tooltip.innerHTML = `
+        <div class="tooltip-title">${monthName}</div>
+        <div class="tooltip-energy">Avg Energy: ${data.avg.toFixed(1)}/10</div>
+        <div class="tooltip-meta">${data.count} activities</div>
+      `;
+      tooltip.classList.add('visible');
+      moveTooltip(e);
+    });
+    bar.addEventListener('mousemove', moveTooltip);
+    bar.addEventListener('mouseleave', hideTooltip);
+
+    chart.appendChild(bar);
+  });
+
+  updatePeriodLabel('Energy Trends');
+}
+
+// ==================== ENERGY DISTRIBUTION ====================
+function renderEnergyDistribution() {
+  // Count activities by energy level
+  const distribution = {};
+  for (let i = 1; i <= 10; i++) {
+    distribution[i] = 0;
+  }
+
+  filteredData.forEach(item => {
+    const level = Math.round(item.energyRating);
+    if (level >= 1 && level <= 10) {
+      distribution[level]++;
+    }
+  });
+
+  const maxCount = Math.max(...Object.values(distribution));
+  const total = filteredData.length;
+
+  container.innerHTML = `
+    <div class="distribution-container">
+      <div class="distribution-title">Energy Level Distribution</div>
+      <div class="distribution-chart" id="distribution-chart"></div>
+      <div class="distribution-labels">
+        ${[1,2,3,4,5,6,7,8,9,10].map(n => `<span>${n}</span>`).join('')}
+      </div>
+      <div class="distribution-x-label">Energy Level</div>
+    </div>
+  `;
+
+  const chart = document.getElementById('distribution-chart');
+
+  for (let level = 1; level <= 10; level++) {
+    const count = distribution[level];
+    const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+    const hue = level * 12;
+    const percentage = ((count / total) * 100).toFixed(1);
+
+    const bar = document.createElement('div');
+    bar.className = 'distribution-bar';
+    bar.style.height = `${height}%`;
+    bar.style.background = `hsl(${hue}, 70%, 45%)`;
+
+    bar.addEventListener('mouseenter', (e) => {
+      tooltip.innerHTML = `
+        <div class="tooltip-title">Energy Level ${level}</div>
+        <div class="tooltip-meta">${count} activities (${percentage}%)</div>
+      `;
+      tooltip.classList.add('visible');
+      moveTooltip(e);
+    });
+    bar.addEventListener('mousemove', moveTooltip);
+    bar.addEventListener('mouseleave', hideTooltip);
+
+    chart.appendChild(bar);
+  }
+
+  updatePeriodLabel('Energy Distribution');
+}
+
 // ==================== REFLECTIONS VIEW ====================
 function renderReflectionsView(monthKey) {
   const [year, month] = monthKey.split('-').map(Number);
@@ -856,6 +1920,57 @@ function switchView(view) {
 }
 
 function renderCurrentView() {
+  // Handle different data types
+  if (currentDataType === 'reflections') {
+    // Check if we have daily reflections OR activity reflections
+    const hasDailyReflections = Object.keys(reflectionsData).length > 0;
+    const hasActivityReflections = filteredData.some(item => item.reflection);
+
+    if (!hasDailyReflections && !hasActivityReflections) {
+      container.innerHTML = `<div class="no-data">No reflections available for this profile.</div>`;
+      updatePeriodLabel('Reflections');
+      return;
+    }
+
+    if (currentView === 'bubble') {
+      if (hasDailyReflections) {
+        renderReflectionsBubbleChart();
+      } else {
+        renderActivityReflectionsBubble();
+      }
+    } else if (currentView === 'treemap') {
+      renderActivityReflectionsTreemap();
+    } else if (currentView === 'timeline') {
+      const months = getUniqueMonths(allData);
+      if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[0];
+      if (currentMonth) renderReflectionsView(currentMonth);
+    } else if (currentView === 'calendar') {
+      if (hasDailyReflections) {
+        renderReflectionsCalendar();
+      } else {
+        renderActivityReflectionsCalendar();
+      }
+    }
+    return;
+  }
+
+  if (currentDataType === 'energy') {
+    if (filteredData.length === 0) {
+      container.innerHTML = `<div class="no-data">No data available for energy visualization</div>`;
+      updatePeriodLabel('Energy');
+      return;
+    }
+    if (currentView === 'heatmap') {
+      renderEnergyHeatmap();
+    } else if (currentView === 'trends') {
+      renderEnergyTrends();
+    } else if (currentView === 'distribution') {
+      renderEnergyDistribution();
+    }
+    return;
+  }
+
+  // Activities data type
   if (filteredData.length === 0) {
     container.innerHTML = `<div class="no-data">No activities match the selected filters</div>`;
     updatePeriodLabel('No data');
@@ -880,22 +1995,42 @@ function renderCurrentView() {
     if (currentYear) renderYearView(currentYear);
   } else if (currentView === 'allyears') {
     renderAllYearsView();
-  } else if (currentView === 'reflections') {
-    // Check if reflections are available
-    if (Object.keys(reflectionsData).length === 0) {
-      container.innerHTML = `<div class="no-data">No reflections available for this profile.<br>Reflections show daily journal entries separate from activities.</div>`;
-      updatePeriodLabel('Reflections');
-      return;
-    }
-    const months = getUniqueMonths(allData);
-    if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[0];
-    if (currentMonth) renderReflectionsView(currentMonth);
   }
 }
 
 function updateFilters() {
   applyFilters();
   renderCurrentView();
+}
+
+function updateViewOptions() {
+  const viewSelect = document.getElementById('view-select');
+
+  if (currentDataType === 'activities') {
+    viewSelect.innerHTML = `
+      <option value="day">Day</option>
+      <option value="week">Week</option>
+      <option value="month">Month</option>
+      <option value="year">Year</option>
+      <option value="allyears">All Years</option>
+    `;
+    currentView = 'day';
+  } else if (currentDataType === 'reflections') {
+    viewSelect.innerHTML = `
+      <option value="bubble">Bubble Chart</option>
+      <option value="treemap">Tree Map</option>
+      <option value="timeline">Timeline</option>
+      <option value="calendar">Calendar</option>
+    `;
+    currentView = 'bubble';
+  } else if (currentDataType === 'energy') {
+    viewSelect.innerHTML = `
+      <option value="heatmap">Heatmap</option>
+      <option value="trends">Trends</option>
+      <option value="distribution">Distribution</option>
+    `;
+    currentView = 'heatmap';
+  }
 }
 
 async function loadProfile(profileId) {
@@ -979,11 +2114,11 @@ function exportSVG() {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <style>
       .bg { fill: #0a0a0a; }
-      .title { fill: #f0f0f0; font-family: system-ui, sans-serif; font-size: 18px; font-weight: 300; }
-      .subtitle { fill: #666; font-family: system-ui, sans-serif; font-size: 12px; }
-      .year-label { fill: #666; font-family: system-ui, sans-serif; font-size: 14px; font-weight: 500; }
-      .month-label { fill: #555; font-family: system-ui, sans-serif; font-size: 10px; text-transform: uppercase; }
-      .legend-text { fill: #666; font-family: system-ui, sans-serif; font-size: 10px; }
+      .title { fill: #f0f0f0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 300; }
+      .subtitle { fill: #666; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; }
+      .year-label { fill: #666; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 500; }
+      .month-label { fill: #555; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; text-transform: uppercase; }
+      .legend-text { fill: #666; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; }
     </style>
     <rect class="bg" width="${width}" height="${height}"/>
     <text class="title" x="40" y="40">${profile.name} – ${periodLabel}</text>
@@ -1160,13 +2295,17 @@ async function init() {
   const controls = document.createElement('div');
   controls.className = 'controls';
   controls.innerHTML = `
+    <select class="view-select data-type-select" id="data-type-select">
+      <option value="activities">Activities</option>
+      <option value="reflections">Reflections</option>
+      <option value="energy">Energy</option>
+    </select>
     <select class="view-select" id="view-select">
       <option value="day">Day</option>
       <option value="week">Week</option>
       <option value="month">Month</option>
       <option value="year">Year</option>
       <option value="allyears">All Years</option>
-      <option value="reflections">Reflections</option>
     </select>
     <select class="view-select" id="pillar-select">
       <option value="all">All Pillars</option>
@@ -1192,6 +2331,11 @@ async function init() {
   // Event listeners
   document.getElementById('profile-select').addEventListener('change', (e) => {
     loadProfile(e.target.value);
+  });
+  document.getElementById('data-type-select').addEventListener('change', (e) => {
+    currentDataType = e.target.value;
+    updateViewOptions();
+    renderCurrentView();
   });
   document.getElementById('view-select').addEventListener('change', (e) => switchView(e.target.value));
   document.getElementById('pillar-select').addEventListener('change', (e) => {

@@ -5,7 +5,7 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   background: #0a0a0a;
   color: #f0f0f0;
   min-height: 100vh;
@@ -659,4 +659,568 @@ h1 {
 
 .mood-legend {
   flex-wrap: wrap;
+}
+
+/* Data Type Selector */
+.data-type-select {
+  background: linear-gradient(135deg, #2a2a4a 0%, #1a1a3a 100%);
+  border-color: #6a6aff;
+}
+
+/* Bubble Chart */
+.bubble-chart-container {
+  padding: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.bubble-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bubble-section-title {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.bubble-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.bubble {
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.bubble-count {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.bubble-label {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.85);
+  text-transform: capitalize;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Reflections Calendar */
+.reflections-calendar-container {
+  padding: 1rem 0;
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.reflections-calendar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.calendar-month {
+  flex: 0 0 auto;
+  width: 200px;
+}
+
+.calendar-month-title {
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  color: #444;
+  background: #151515;
+  border-radius: 2px;
+  cursor: default;
+}
+
+.calendar-day.empty {
+  background: transparent;
+}
+
+.calendar-day.has-reflection {
+  cursor: pointer;
+  color: #fff;
+  font-weight: 500;
+}
+
+.calendar-day.has-reflection:hover {
+  opacity: 0.8;
+}
+
+/* Treemap */
+.treemap-container {
+  padding: 2rem 0;
+  height: calc(100vh - 250px);
+  min-height: 400px;
+}
+
+.treemap-title {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.treemap {
+  display: flex;
+  gap: 8px;
+  height: calc(100% - 40px);
+  min-height: 350px;
+}
+
+.treemap-pillar {
+  display: flex;
+  flex-direction: column;
+  min-width: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0d0d0d;
+}
+
+.treemap-pillar-header {
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.treemap-pillar-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: capitalize;
+}
+
+.treemap-pillar-count {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.treemap-categories {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+}
+
+.treemap-category {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  min-height: 40px;
+  overflow: hidden;
+}
+
+.treemap-category:hover {
+  opacity: 0.85;
+  transform: scale(1.02);
+}
+
+.treemap-cat-name {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.9);
+  text-transform: capitalize;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.treemap-cat-count {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Energy Heatmap */
+.heatmap-container {
+  padding: 2rem 0;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heatmap-title {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.heatmap {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.heatmap-y-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding-right: 0.5rem;
+}
+
+.heatmap-y-label {
+  font-size: 0.65rem;
+  color: #555;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.heatmap-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heatmap-row {
+  display: flex;
+  gap: 2px;
+}
+
+.heatmap-cell {
+  flex: 1;
+  height: 20px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.2);
+  z-index: 10;
+}
+
+.heatmap-x-labels {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.5rem;
+  padding-left: 3rem;
+}
+
+.heatmap-x-label {
+  font-size: 0.6rem;
+  color: #555;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.7rem;
+  color: #555;
+}
+
+.heatmap-legend-gradient {
+  width: 150px;
+  height: 12px;
+  background: linear-gradient(90deg, hsl(0, 60%, 25%), hsl(60, 70%, 35%), hsl(120, 70%, 40%));
+  border-radius: 2px;
+}
+
+/* Energy Trends */
+.trends-container {
+  padding: 2rem 0;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.trends-title {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.trends-chart {
+  display: flex;
+  align-items: flex-end;
+  height: 200px;
+  gap: 2px;
+  padding: 0 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.trends-bar {
+  flex: 1;
+  min-width: 4px;
+  border-radius: 2px 2px 0 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.trends-bar:hover {
+  opacity: 0.8;
+}
+
+.trends-legend {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin-top: 2rem;
+}
+
+.trends-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.trends-stat-value {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: #f0f0f0;
+}
+
+.trends-stat-label {
+  font-size: 0.7rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Energy Distribution */
+.distribution-container {
+  padding: 2rem 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.distribution-title {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.distribution-chart {
+  display: flex;
+  align-items: flex-end;
+  height: 200px;
+  gap: 8px;
+  padding: 0 1rem;
+}
+
+.distribution-bar {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  min-height: 4px;
+}
+
+.distribution-bar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.05);
+}
+
+.distribution-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 1rem 0;
+}
+
+.distribution-labels span {
+  flex: 1;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #555;
+}
+
+.distribution-x-label {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #444;
+  margin-top: 0.75rem;
+}
+
+/* Packed Bubble Chart (D3 Circle Packing) */
+.packed-bubble-container {
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+}
+
+.packed-bubble-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.packed-bubble-title {
+  font-size: 1rem;
+  color: #ccc;
+  font-weight: 400;
+  text-transform: capitalize;
+}
+
+.packed-bubble-count {
+  font-size: 0.75rem;
+  color: #555;
+  margin-left: auto;
+}
+
+.bubble-back-btn {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #888;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.bubble-back-btn:hover {
+  background: #222;
+  color: #fff;
+  border-color: #4a9eff;
+}
+
+.packed-bubble-breadcrumb {
+  font-size: 0.7rem;
+  color: #555;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.breadcrumb-item {
+  color: #4a9eff;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.breadcrumb-item:hover {
+  color: #6ab0ff;
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: #888;
+}
+
+.packed-circles-svg {
+  flex: 1;
+  width: 100%;
+  min-height: 400px;
+}
+
+.packed-circles-svg text {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Reflections List (drill-down view) */
+.reflections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.5rem 0;
+}
+
+.reflection-list-item {
+  background: #141414;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid #4a9eff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.reflection-list-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+.reflection-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.reflection-list-date {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.reflection-list-category {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  color: #fff;
+  text-transform: capitalize;
+}
+
+.reflection-list-energy {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.reflection-list-text {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #bbb;
+  font-style: italic;
 }
