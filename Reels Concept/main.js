@@ -39,7 +39,7 @@ const categoryColors = {
   // T
   travel: '#7dd3c0',
 
-  // Map existing data categories to colors
+  // Map existing data categories to colors (lowercase for normalization)
   // Work-related
   planning: '#82b4e5',
   meetings: '#82b4e5',
@@ -64,6 +64,12 @@ const categoryColors = {
   sleep: '#9b8ec2'
 };
 
+// Normalize category lookup (case-insensitive)
+function getCategoryColorNormalized(category) {
+  const lowerCat = category.toLowerCase();
+  return categoryColors[lowerCat] || categoryColors[category] || '#888';
+}
+
 let allData = [];
 let filteredData = [];
 let reflectionsData = {};
@@ -75,6 +81,24 @@ let currentYear = null; // YYYY
 let currentPillar = 'all';
 let currentCategory = 'all';
 let showEnergyHeight = true;
+let currentProfile = 'default';
+
+const profiles = {
+  default: {
+    name: '25yo Korean American',
+    dataFile: 'generated-data.json',
+    reflectionsFile: 'daily_reflections_2025.json',
+    location: 'New York, NY',
+    years: '2025'
+  },
+  achiever: {
+    name: '35yo Actualized Achiever',
+    dataFile: 'actualized_achiever_10year_journal.json',
+    reflectionsFile: null,
+    location: 'Seattle, WA',
+    years: '2015-2024'
+  }
+};
 
 const moodColors = {
   happy: '#50c878',
@@ -182,16 +206,69 @@ function getUniquePillars(data) {
 
 function getUniqueCategories(data) {
   const categories = new Set();
-  data.forEach(item => categories.add(item.category));
+  data.forEach(item => categories.add(item.category.toLowerCase()));
   return Array.from(categories).sort();
 }
 
 function applyFilters() {
   filteredData = allData.filter(item => {
     if (currentPillar !== 'all' && item.pillar !== currentPillar) return false;
-    if (currentCategory !== 'all' && item.category !== currentCategory) return false;
+    if (currentCategory !== 'all' && item.category.toLowerCase() !== currentCategory.toLowerCase()) return false;
     return true;
   });
+}
+
+// Normalize data from different sources to a common format
+function normalizeData(rawData, profile) {
+  if (profile === 'achiever') {
+    // 10-year journal format
+    return rawData.activities.map((item, idx) => {
+      const startDateTime = new Date(`${item.date}T${item.startTime}:00`);
+      const endDateTime = new Date(startDateTime.getTime() + item.duration * 60000);
+
+      return {
+        id: `block-${idx}`,
+        title: item.activity,
+        start: startDateTime.toISOString(),
+        end: endDateTime.toISOString(),
+        duration: item.duration,
+        pillar: getPillarForCategory(item.category),
+        category: item.category.toLowerCase(),
+        energyRating: Math.round(item.energyLevel),
+        reflection: item.reflection,
+        people: item.people === 'Alone' ? [] : [item.people],
+        place: item.location,
+        source: 'journal'
+      };
+    });
+  }
+  // Default format - already normalized
+  return rawData;
+}
+
+// Map categories to pillars
+function getPillarForCategory(category) {
+  const pillarMap = {
+    'overnight': 'rest',
+    'nap': 'rest',
+    'personal care': 'life',
+    'meal': 'life',
+    'chores': 'life',
+    'cleaning': 'life',
+    'shopping': 'life',
+    'exercise': 'growth',
+    'meditation': 'growth',
+    'learning': 'growth',
+    'hobbies': 'growth',
+    'quiet time': 'growth',
+    'meeting': 'work',
+    'finances': 'work',
+    'socializing': 'life',
+    'travel': 'life',
+    'church': 'growth',
+    'entertainment': 'life'
+  };
+  return pillarMap[category.toLowerCase()] || 'life';
 }
 
 function getReflectionForDate(dateStr) {
@@ -253,7 +330,8 @@ function addBlockEvents(block, item) {
 
 // Get color for a category
 function getCategoryColor(category, pillar) {
-  return categoryColors[category] || pillarColors[pillar] || '#888';
+  const lowerCat = category.toLowerCase();
+  return categoryColors[lowerCat] || categoryColors[category] || pillarColors[pillar] || '#888';
 }
 
 // Create a timeblock element
@@ -500,48 +578,164 @@ function renderMonthView(monthKey) {
 // ==================== YEAR VIEW ====================
 function renderYearView(year) {
   const yearData = filterByYear(filteredData, year);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const yearInt = parseInt(year);
 
-  let html = '<div class="timeline-container"><div style="white-space: nowrap;">';
+  // Get all days in the year
+  const isLeapYear = (yearInt % 4 === 0 && yearInt % 100 !== 0) || (yearInt % 400 === 0);
+  const daysInYear = isLeapYear ? 366 : 365;
 
-  months.forEach((month, i) => {
-    html += `
-      <div class="month-column">
-        <div class="month-column-label">${month}</div>
-        <div class="month-column-timeline" id="month-${i}">
-          <div class="month-column-axis"></div>
-        </div>
-      </div>
-    `;
-  });
+  // Configuration for the strip layout
+  const daysPerRow = 30; // Days per row before wrapping
+  const rowHeight = 50; // Height of each row
+  const dayWidth = 100 / daysPerRow; // Width percentage per day
 
-  html += `</div></div>${getLegendHTML(true)}`;
-  container.innerHTML = html;
+  const totalRows = Math.ceil(daysInYear / daysPerRow);
 
-  // Add blocks to each month
-  months.forEach((month, monthIndex) => {
-    const monthTimeline = document.getElementById(`month-${monthIndex}`);
-    const daysInMonth = new Date(parseInt(year), monthIndex + 1, 0).getDate();
+  container.innerHTML = `
+    <div class="year-strips-container">
+      <div class="year-strips" id="year-strips"></div>
+    </div>
+    ${getLegendHTML(true)}
+  `;
 
-    const monthData = yearData.filter(item => new Date(item.start).getMonth() === monthIndex);
+  const stripsContainer = document.getElementById('year-strips');
 
-    monthData.forEach(item => {
-      const start = new Date(item.start);
-      const dayOfMonth = start.getDate();
-      const dayStart = getDayStart(start);
+  // Create rows
+  for (let row = 0; row < totalRows; row++) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'year-strip-row';
+    rowDiv.style.height = `${rowHeight}px`;
 
-      const dayOffset = ((dayOfMonth - 1) / daysInMonth) * 100;
-      const timeInDay = (start - dayStart) / (24 * 60 * 60 * 1000);
-      const durationInDay = item.duration / (24 * 60);
+    const startDay = row * daysPerRow;
+    const endDay = Math.min(startDay + daysPerRow, daysInYear);
 
-      const leftPos = dayOffset + (timeInDay / daysInMonth) * 100;
-      const width = Math.max((durationInDay / daysInMonth) * 100, 1);
+    // Add month labels at the start of each month
+    let currentMonth = -1;
 
-      monthTimeline.appendChild(createBlock(item, leftPos, width, item.energyRating, 140));
-    });
-  });
+    for (let dayOfYear = startDay; dayOfYear < endDay; dayOfYear++) {
+      const date = new Date(yearInt, 0, dayOfYear + 1);
+      const month = date.getMonth();
+      const dayInRow = dayOfYear - startDay;
+
+      // Check if this is the first day of a month in this row
+      if (month !== currentMonth) {
+        currentMonth = month;
+        const monthLabel = document.createElement('div');
+        monthLabel.className = 'year-strip-month-label';
+        monthLabel.style.left = `${dayInRow * dayWidth}%`;
+        monthLabel.textContent = date.toLocaleDateString('en-US', { month: 'short' });
+        rowDiv.appendChild(monthLabel);
+      }
+
+      // Get activities for this day
+      const dateStr = getDayKey(date);
+      const dayActivities = yearData.filter(item => getDayKey(item.start) === dateStr);
+
+      // Render activities as horizontal segments within the day's slice
+      dayActivities.forEach(item => {
+        const start = new Date(item.start);
+        const dayStart = getDayStart(start);
+
+        // Position within the day (0-1)
+        const timeStart = (start - dayStart) / (24 * 60 * 60 * 1000);
+        const duration = item.duration / (24 * 60); // Duration as fraction of day
+
+        // Calculate position in the row
+        const leftPos = (dayInRow + timeStart) * dayWidth;
+        const width = Math.max(duration * dayWidth, 0.15);
+
+        const color = getCategoryColor(item.category, item.pillar);
+
+        const block = document.createElement('div');
+        block.className = 'year-strip-block';
+        block.style.left = `${leftPos}%`;
+        block.style.width = `${width}%`;
+        block.style.background = color;
+
+        // Height based on energy if enabled
+        if (showEnergyHeight) {
+          const heightPercent = 30 + (item.energyRating / 10) * 70;
+          block.style.height = `${heightPercent}%`;
+          block.style.top = `${(100 - heightPercent) / 2}%`;
+        }
+
+        addBlockEvents(block, item);
+        rowDiv.appendChild(block);
+      });
+    }
+
+    stripsContainer.appendChild(rowDiv);
+  }
 
   updatePeriodLabel(year);
+}
+
+// ==================== ALL YEARS VIEW (for multi-year profiles) ====================
+function renderAllYearsView() {
+  const years = getUniqueYears(filteredData);
+
+  container.innerHTML = `
+    <div class="all-years-container">
+      <div class="all-years-grid" id="all-years-grid"></div>
+    </div>
+    ${getLegendHTML(true)}
+  `;
+
+  const grid = document.getElementById('all-years-grid');
+
+  years.forEach(year => {
+    const yearData = filterByYear(filteredData, year);
+    const yearInt = parseInt(year);
+    const isLeapYear = (yearInt % 4 === 0 && yearInt % 100 !== 0) || (yearInt % 400 === 0);
+    const daysInYear = isLeapYear ? 366 : 365;
+
+    const yearSection = document.createElement('div');
+    yearSection.className = 'all-years-year';
+
+    const yearLabel = document.createElement('div');
+    yearLabel.className = 'all-years-label';
+    yearLabel.textContent = year;
+    yearSection.appendChild(yearLabel);
+
+    const stripContainer = document.createElement('div');
+    stripContainer.className = 'all-years-strip';
+
+    // Create a single continuous strip for the entire year
+    for (let dayOfYear = 0; dayOfYear < daysInYear; dayOfYear++) {
+      const date = new Date(yearInt, 0, dayOfYear + 1);
+      const dateStr = getDayKey(date);
+      const dayActivities = yearData.filter(item => getDayKey(item.start) === dateStr);
+
+      const daySlice = document.createElement('div');
+      daySlice.className = 'all-years-day';
+
+      dayActivities.forEach(item => {
+        const start = new Date(item.start);
+        const dayStart = getDayStart(start);
+
+        const timeStart = (start - dayStart) / (24 * 60 * 60 * 1000);
+        const duration = item.duration / (24 * 60);
+
+        const color = getCategoryColor(item.category, item.pillar);
+
+        const block = document.createElement('div');
+        block.className = 'all-years-block';
+        block.style.top = `${timeStart * 100}%`;
+        block.style.height = `${Math.max(duration * 100, 2)}%`;
+        block.style.background = color;
+
+        addBlockEvents(block, item);
+        daySlice.appendChild(block);
+      });
+
+      stripContainer.appendChild(daySlice);
+    }
+
+    yearSection.appendChild(stripContainer);
+    grid.appendChild(yearSection);
+  });
+
+  updatePeriodLabel(`All Years (${years[0]}–${years[years.length - 1]})`);
 }
 
 // ==================== REFLECTIONS VIEW ====================
@@ -606,6 +800,9 @@ function renderReflectionsView(monthKey) {
 
 // Navigation
 function navigate(direction) {
+  // No navigation for "all years" view
+  if (currentView === 'allyears') return;
+
   const days = getUniqueDays(filteredData);
   const weeks = getUniqueWeeks(filteredData);
   const months = getUniqueMonths(filteredData);
@@ -681,7 +878,15 @@ function renderCurrentView() {
     const years = getUniqueYears(filteredData);
     if (!currentYear || !years.includes(parseInt(currentYear))) currentYear = years[0]?.toString();
     if (currentYear) renderYearView(currentYear);
+  } else if (currentView === 'allyears') {
+    renderAllYearsView();
   } else if (currentView === 'reflections') {
+    // Check if reflections are available
+    if (Object.keys(reflectionsData).length === 0) {
+      container.innerHTML = `<div class="no-data">No reflections available for this profile.<br>Reflections show daily journal entries separate from activities.</div>`;
+      updatePeriodLabel('Reflections');
+      return;
+    }
     const months = getUniqueMonths(allData);
     if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[0];
     if (currentMonth) renderReflectionsView(currentMonth);
@@ -693,29 +898,263 @@ function updateFilters() {
   renderCurrentView();
 }
 
-async function init() {
-  const [activityData, reflectionsRaw] = await Promise.all([
-    d3.json('generated-data.json'),
-    d3.json('daily_reflections_2025.json')
-  ]);
+async function loadProfile(profileId) {
+  currentProfile = profileId;
+  const profile = profiles[profileId];
 
-  allData = activityData;
+  // Show loading state
+  container.innerHTML = '<div class="loading">Loading profile...</div>';
+
+  // Load data
+  const rawData = await d3.json(profile.dataFile);
+  allData = normalizeData(rawData, profileId);
   filteredData = [...allData];
 
-  // Index reflections by date for quick lookup
-  reflectionsRaw.reflections.forEach(r => {
-    reflectionsData[r.date] = r;
-  });
+  // Load reflections if available
+  reflectionsData = {};
+  if (profile.reflectionsFile) {
+    try {
+      const reflectionsRaw = await d3.json(profile.reflectionsFile);
+      reflectionsRaw.reflections.forEach(r => {
+        reflectionsData[r.date] = r;
+      });
+    } catch (e) {
+      console.log('No reflections file for this profile');
+    }
+  }
 
-  // Get unique values for filters
-  const pillars = getUniquePillars(allData);
-  const categories = getUniqueCategories(allData);
-
-  // Set initial values
+  // Reset navigation state
   currentDate = getUniqueDays(allData)[0];
   currentWeek = getUniqueWeeks(allData)[0];
   currentMonth = getUniqueMonths(allData)[0];
-  currentYear = getUniqueYears(allData)[0].toString();
+  currentYear = getUniqueYears(allData)[0]?.toString();
+
+  // Update category dropdown
+  const categories = getUniqueCategories(allData);
+  const categorySelect = document.getElementById('category-select');
+  categorySelect.innerHTML = `
+    <option value="all">All Activities</option>
+    ${categories.map(c => `<option value="${c}">${c.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>`).join('')}
+  `;
+
+  // Update profile info display
+  updateProfileInfo();
+
+  // Render
+  renderCurrentView();
+}
+
+function updateProfileInfo() {
+  const profile = profiles[currentProfile];
+  const infoEl = document.getElementById('profile-info');
+  if (infoEl) {
+    infoEl.innerHTML = `
+      <span class="profile-name">${profile.name}</span>
+      <span class="profile-location">${profile.location}</span>
+      <span class="profile-years">${profile.years}</span>
+    `;
+  }
+}
+
+// Export current view as SVG
+function exportSVG() {
+  const periodLabel = document.getElementById('period-label').textContent;
+  const profile = profiles[currentProfile];
+
+  // Determine dimensions based on view
+  let width, height;
+  if (currentView === 'allyears') {
+    const years = getUniqueYears(filteredData);
+    width = 2000;
+    height = years.length * 100 + 150;
+  } else if (currentView === 'year') {
+    width = 2000;
+    height = 800;
+  } else {
+    width = 1600;
+    height = 500;
+  }
+
+  // Create SVG
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <style>
+      .bg { fill: #0a0a0a; }
+      .title { fill: #f0f0f0; font-family: system-ui, sans-serif; font-size: 18px; font-weight: 300; }
+      .subtitle { fill: #666; font-family: system-ui, sans-serif; font-size: 12px; }
+      .year-label { fill: #666; font-family: system-ui, sans-serif; font-size: 14px; font-weight: 500; }
+      .month-label { fill: #555; font-family: system-ui, sans-serif; font-size: 10px; text-transform: uppercase; }
+      .legend-text { fill: #666; font-family: system-ui, sans-serif; font-size: 10px; }
+    </style>
+    <rect class="bg" width="${width}" height="${height}"/>
+    <text class="title" x="40" y="40">${profile.name} – ${periodLabel}</text>
+    <text class="subtitle" x="40" y="60">${profile.location} • ${profile.years}</text>
+  `;
+
+  const startY = 90;
+
+  if (currentView === 'allyears') {
+    // Export All Years view
+    const years = getUniqueYears(filteredData);
+    const stripHeight = 70;
+    const stripGap = 20;
+    const stripWidth = width - 120;
+
+    years.forEach((year, yearIdx) => {
+      const y = startY + yearIdx * (stripHeight + stripGap);
+      const yearData = filterByYear(filteredData, year);
+      const yearInt = parseInt(year);
+      const isLeapYear = (yearInt % 4 === 0 && yearInt % 100 !== 0) || (yearInt % 400 === 0);
+      const daysInYear = isLeapYear ? 366 : 365;
+
+      // Year label
+      svg += `<text class="year-label" x="50" y="${y + stripHeight / 2 + 5}" text-anchor="end">${year}</text>`;
+
+      // Strip background
+      svg += `<rect x="60" y="${y}" width="${stripWidth}" height="${stripHeight}" fill="#0d0d0d" rx="3"/>`;
+
+      // Activities
+      for (let dayOfYear = 0; dayOfYear < daysInYear; dayOfYear++) {
+        const date = new Date(yearInt, 0, dayOfYear + 1);
+        const dateStr = getDayKey(date);
+        const dayActivities = yearData.filter(item => getDayKey(item.start) === dateStr);
+        const dayX = 60 + (dayOfYear / daysInYear) * stripWidth;
+        const dayW = stripWidth / daysInYear;
+
+        dayActivities.forEach(item => {
+          const start = new Date(item.start);
+          const dayStart = getDayStart(start);
+          const timeStart = (start - dayStart) / (24 * 60 * 60 * 1000);
+          const duration = item.duration / (24 * 60);
+
+          const blockY = y + timeStart * stripHeight;
+          const blockH = Math.max(duration * stripHeight, 2);
+          const color = getCategoryColor(item.category, item.pillar);
+
+          svg += `<rect x="${dayX}" y="${blockY}" width="${Math.max(dayW, 1)}" height="${blockH}" fill="${color}"/>`;
+        });
+      }
+    });
+
+    // Legend
+    const legendY = startY + years.length * (stripHeight + stripGap) + 20;
+    svg += renderLegendSVG(40, legendY, width - 80);
+
+  } else if (currentView === 'year') {
+    // Export Year view
+    const yearData = filterByYear(filteredData, currentYear);
+    const yearInt = parseInt(currentYear);
+    const isLeapYear = (yearInt % 4 === 0 && yearInt % 100 !== 0) || (yearInt % 400 === 0);
+    const daysInYear = isLeapYear ? 366 : 365;
+    const daysPerRow = 30;
+    const rowHeight = 45;
+    const rowGap = 25;
+    const totalRows = Math.ceil(daysInYear / daysPerRow);
+    const stripWidth = width - 80;
+
+    for (let row = 0; row < totalRows; row++) {
+      const y = startY + row * (rowHeight + rowGap);
+      const startDay = row * daysPerRow;
+      const endDay = Math.min(startDay + daysPerRow, daysInYear);
+
+      // Row background
+      svg += `<rect x="40" y="${y}" width="${stripWidth}" height="${rowHeight}" fill="#0d0d0d" rx="2"/>`;
+
+      let currentMonth = -1;
+      for (let dayOfYear = startDay; dayOfYear < endDay; dayOfYear++) {
+        const date = new Date(yearInt, 0, dayOfYear + 1);
+        const month = date.getMonth();
+        const dayInRow = dayOfYear - startDay;
+        const dayX = 40 + (dayInRow / daysPerRow) * stripWidth;
+        const dayW = stripWidth / daysPerRow;
+
+        // Month label
+        if (month !== currentMonth) {
+          currentMonth = month;
+          const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+          svg += `<text class="month-label" x="${dayX}" y="${y - 5}">${monthName}</text>`;
+        }
+
+        // Activities
+        const dateStr = getDayKey(date);
+        const dayActivities = yearData.filter(item => getDayKey(item.start) === dateStr);
+
+        dayActivities.forEach(item => {
+          const start = new Date(item.start);
+          const dayStart = getDayStart(start);
+          const timeStart = (start - dayStart) / (24 * 60 * 60 * 1000);
+          const duration = item.duration / (24 * 60);
+
+          const blockX = dayX + timeStart * dayW;
+          const blockW = Math.max(duration * dayW, 1);
+          const color = getCategoryColor(item.category, item.pillar);
+
+          let blockH = rowHeight;
+          let blockY = y;
+          if (showEnergyHeight) {
+            const heightPercent = 0.3 + (item.energyRating / 10) * 0.7;
+            blockH = rowHeight * heightPercent;
+            blockY = y + (rowHeight - blockH) / 2;
+          }
+
+          svg += `<rect x="${blockX}" y="${blockY}" width="${blockW}" height="${blockH}" fill="${color}" rx="1"/>`;
+        });
+      }
+    }
+
+    // Legend
+    const legendY = startY + totalRows * (rowHeight + rowGap) + 20;
+    svg += renderLegendSVG(40, legendY, width - 80);
+
+  } else {
+    // Export Day/Week/Month views (simplified)
+    svg += `<text class="subtitle" x="${width/2}" y="${height/2}" text-anchor="middle">Use Year or All Years view for best SVG export</text>`;
+  }
+
+  svg += '</svg>';
+
+  // Download
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `existence-${currentProfile}-${currentView}-${periodLabel.replace(/[^a-z0-9]/gi, '-')}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function renderLegendSVG(x, y, maxWidth) {
+  let svg = '';
+  const itemWidth = 90;
+  const itemHeight = 20;
+  const cols = Math.floor(maxWidth / itemWidth);
+
+  activityTypes.forEach((activity, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const itemX = x + col * itemWidth;
+    const itemY = y + row * itemHeight;
+
+    svg += `<rect x="${itemX}" y="${itemY}" width="12" height="12" fill="${activity.color}" rx="2"/>`;
+    svg += `<text class="legend-text" x="${itemX + 18}" y="${itemY + 10}">${activity.name}</text>`;
+  });
+
+  return svg;
+}
+
+async function init() {
+  // Create profile selector header
+  const header = document.createElement('div');
+  header.className = 'profile-header';
+  header.innerHTML = `
+    <select class="profile-select" id="profile-select">
+      <option value="default">25yo Korean American</option>
+      <option value="achiever">35yo Actualized Achiever (10 Years)</option>
+    </select>
+    <div class="profile-info" id="profile-info"></div>
+  `;
+  document.getElementById('app').insertBefore(header, document.querySelector('h1'));
 
   // Create controls
   const controls = document.createElement('div');
@@ -726,15 +1165,18 @@ async function init() {
       <option value="week">Week</option>
       <option value="month">Month</option>
       <option value="year">Year</option>
+      <option value="allyears">All Years</option>
       <option value="reflections">Reflections</option>
     </select>
     <select class="view-select" id="pillar-select">
       <option value="all">All Pillars</option>
-      ${pillars.map(p => `<option value="${p}">${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('')}
+      <option value="work">Work</option>
+      <option value="life">Life</option>
+      <option value="growth">Growth</option>
+      <option value="rest">Rest</option>
     </select>
     <select class="view-select" id="category-select">
       <option value="all">All Activities</option>
-      ${categories.map(c => `<option value="${c}">${c.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>`).join('')}
     </select>
     <button class="nav-btn" id="prev-btn">← Prev</button>
     <button class="nav-btn" id="next-btn">Next →</button>
@@ -742,10 +1184,15 @@ async function init() {
       <input type="checkbox" id="energy-toggle" checked>
       <span class="toggle-text">Energy Height</span>
     </label>
+    <button class="nav-btn export-btn" id="export-btn">Export SVG</button>
     <span class="period-label" id="period-label"></span>
   `;
   document.getElementById('app').insertBefore(controls, container);
 
+  // Event listeners
+  document.getElementById('profile-select').addEventListener('change', (e) => {
+    loadProfile(e.target.value);
+  });
   document.getElementById('view-select').addEventListener('change', (e) => switchView(e.target.value));
   document.getElementById('pillar-select').addEventListener('change', (e) => {
     currentPillar = e.target.value;
@@ -761,9 +1208,10 @@ async function init() {
     showEnergyHeight = e.target.checked;
     renderCurrentView();
   });
+  document.getElementById('export-btn').addEventListener('click', exportSVG);
 
-  // Initial render
-  renderDayView(currentDate);
+  // Load default profile
+  await loadProfile('default');
 }
 
 init();

@@ -26,7 +26,66 @@ h1 {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   opacity: 0.6;
+  margin-bottom: 1rem;
+}
+
+/* Profile Header */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-select {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid #4a9eff;
+  color: #f0f0f0;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.profile-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.3);
+}
+
+.profile-select option {
+  background: #1a1a1a;
+  color: #f0f0f0;
+}
+
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.profile-name {
+  color: #888;
+  font-weight: 500;
+}
+
+.profile-location::before,
+.profile-years::before {
+  content: '•';
+  margin-right: 0.5rem;
+  color: #444;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #666;
+  font-size: 0.9rem;
 }
 
 /* Controls */
@@ -125,6 +184,17 @@ h1 {
 
 .toggle-text {
   color: #888;
+}
+
+.export-btn {
+  background: linear-gradient(135deg, #2a4a3a 0%, #1a3a2a 100%);
+  border-color: #50c878;
+  color: #50c878;
+}
+
+.export-btn:hover {
+  background: linear-gradient(135deg, #3a5a4a 0%, #2a4a3a 100%);
+  color: #70e898;
 }
 
 .period-label {
@@ -300,7 +370,58 @@ h1 {
   bottom: 15px;
 }
 
-/* Month columns for year view */
+/* Year strips view - dense horizontal visualization */
+.year-strips-container {
+  width: 100%;
+  overflow: auto;
+  padding: 1rem 0;
+  max-height: calc(100vh - 200px);
+}
+
+.year-strips {
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 1.5rem;
+}
+
+.year-strip-row {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  background: #0d0d0d;
+  border-radius: 3px;
+  border: 1px solid #1a1a1a;
+}
+
+.year-strip-block {
+  position: absolute;
+  height: 100%;
+  top: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.year-strip-block:hover {
+  opacity: 0.8;
+  z-index: 10;
+  transform: scaleY(1.1);
+}
+
+.year-strip-month-label {
+  position: absolute;
+  top: -20px;
+  font-size: 0.65rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  font-weight: 500;
+}
+
+/* Legacy month columns (keeping for compatibility) */
 .month-column {
   display: inline-block;
   vertical-align: top;
@@ -334,6 +455,72 @@ h1 {
 
 .month-column .timeblock {
   bottom: 20px;
+}
+
+/* All Years View - expanded multi-year visualization */
+.all-years-container {
+  width: 100%;
+  overflow: auto;
+  padding: 1rem 0;
+  max-height: calc(100vh - 200px);
+}
+
+.all-years-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.all-years-year {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.all-years-label {
+  font-size: 0.85rem;
+  color: #666;
+  width: 50px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-top: 2rem;
+  font-weight: 500;
+}
+
+.all-years-strip {
+  flex: 1;
+  display: flex;
+  height: 80px;
+  background: #0d0d0d;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #1a1a1a;
+}
+
+.all-years-day {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid rgba(255,255,255,0.02);
+}
+
+.all-years-day:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.all-years-block {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  border-radius: 1px;
+}
+
+.all-years-block:hover {
+  opacity: 0.8;
+  transform: scaleX(1.5);
+  z-index: 10;
 }
 
 /* Clickable regions */
