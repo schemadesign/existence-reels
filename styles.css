@@ -1,0 +1,78 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0a0a0a;
+  color: #f0f0f0;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+h1 {
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  margin-bottom: 2rem;
+}
+
+#visualization {
+  width: 100%;
+  min-height: 600px;
+}
+
+#visualization svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tooltip {
+  position: absolute;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 100;
+  max-width: 200px;
+}
+
+.tooltip strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+  text-transform: capitalize;
+}
+
+.tooltip .energy {
+  color: #4a9eff;
+  font-weight: 500;
+}
+
+.tooltip .range {
+  color: #777;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.tooltip .emotions {
+  margin-top: 8px;
+  color: #b8b8b8;
+  font-style: italic;
+}
+
+.tooltip .count {
+  margin-top: 6px;
+  color: #666;
+  font-size: 11px;
+}
