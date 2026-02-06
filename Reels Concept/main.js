@@ -3,8 +3,8 @@ const container = document.getElementById('visualization');
 const pillarColors = {
   work: '#4a9eff',
   life: '#50c878',
-  growth: '#ffaa50',
-  rest: '#b482ff'
+  health: '#ffaa50',
+  sleep: '#b482ff'
 };
 
 // Activity colors matching the app's activity list
@@ -54,13 +54,13 @@ const categoryColors = {
   errands: '#8b9dc3',
   family: '#f7c59f',
   friends: '#f7c59f',
-  // Growth-related
+  // Health-related
   reading: '#7ecfc0',
   gym: '#85dcb8',
   running: '#85dcb8',
   yoga: '#e8b4c8',
   meditation: '#b8d4e8',
-  // Rest-related
+  // Sleep-related
   sleep: '#9b8ec2'
 };
 
@@ -253,10 +253,10 @@ function normalizeData(rawData, profile) {
 // Map categories to pillars
 function getPillarForCategory(category) {
   const pillarMap = {
-    // Rest
-    'overnight': 'rest',
-    'nap': 'rest',
-    'sleep': 'rest',
+    // Sleep
+    'overnight': 'sleep',
+    'nap': 'sleep',
+    'sleep': 'sleep',
     // Life
     'personal care': 'life',
     'meal': 'life',
@@ -271,17 +271,17 @@ function getPillarForCategory(category) {
     'friends': 'life',
     'travel': 'life',
     'entertainment': 'life',
-    // Growth
-    'exercise': 'growth',
-    'gym': 'growth',
-    'running': 'growth',
-    'yoga': 'growth',
-    'meditation': 'growth',
-    'learning': 'growth',
-    'reading': 'growth',
-    'hobbies': 'growth',
-    'quiet time': 'growth',
-    'church': 'growth',
+    // Health
+    'exercise': 'health',
+    'gym': 'health',
+    'running': 'health',
+    'yoga': 'health',
+    'meditation': 'health',
+    'learning': 'health',
+    'reading': 'health',
+    'hobbies': 'health',
+    'quiet time': 'health',
+    'church': 'health',
     // Work
     'meeting': 'work',
     'meetings': 'work',
@@ -412,8 +412,8 @@ function getLegendHTML(showCategories = false) {
     <div class="legend">
       <div class="legend-item"><div class="legend-color" style="background: ${pillarColors.work}"></div>Work</div>
       <div class="legend-item"><div class="legend-color" style="background: ${pillarColors.life}"></div>Life</div>
-      <div class="legend-item"><div class="legend-color" style="background: ${pillarColors.growth}"></div>Growth</div>
-      <div class="legend-item"><div class="legend-color" style="background: ${pillarColors.rest}"></div>Rest</div>
+      <div class="legend-item"><div class="legend-color" style="background: ${pillarColors.health}"></div>Health</div>
+      <div class="legend-item"><div class="legend-color" style="background: ${pillarColors.sleep}"></div>Sleep</div>
     </div>
   `;
 }
@@ -1345,11 +1345,11 @@ function renderActivityReflectionsTreemap() {
 
   const totalReflections = filteredData.filter(i => i.reflection).length;
 
-  const pillarColors = {
+  const pillarColorsLocal = {
     'work': '#4a9eff',
     'life': '#50c878',
-    'growth': '#ffaa50',
-    'rest': '#b482ff'
+    'health': '#ffaa50',
+    'sleep': '#b482ff'
   };
 
   container.innerHTML = `
@@ -1367,7 +1367,7 @@ function renderActivityReflectionsTreemap() {
 
   sortedPillars.forEach(([pillar, data]) => {
     const pillarPercent = (data.total / totalReflections) * 100;
-    const pillarColor = pillarColors[pillar] || '#888';
+    const pillarColor = pillarColorsLocal[pillar] || '#888';
 
     const pillarEl = document.createElement('div');
     pillarEl.className = 'treemap-pillar';
@@ -2503,8 +2503,8 @@ async function init() {
       <option value="all">All Pillars</option>
       <option value="work">Work</option>
       <option value="life">Life</option>
-      <option value="growth">Growth</option>
-      <option value="rest">Rest</option>
+      <option value="health">Health</option>
+      <option value="sleep">Sleep</option>
     </select>
     <select class="view-select" id="category-select">
       <option value="all">All Activities</option>
