@@ -696,71 +696,170 @@ function renderYearView(year) {
 }
 
 // ==================== ALL YEARS VIEW (for multi-year profiles) ====================
+let currentAllYearsPage = 0;
+const YEARS_PER_PAGE = 5;
+
 function renderAllYearsView() {
-  const years = getUniqueYears(filteredData);
+  const allYears = getUniqueYears(filteredData);
+  const totalPages = Math.ceil(allYears.length / YEARS_PER_PAGE);
+
+  // Get years for current page
+  const startIdx = currentAllYearsPage * YEARS_PER_PAGE;
+  const endIdx = Math.min(startIdx + YEARS_PER_PAGE, allYears.length);
+  const pageYears = allYears.slice(startIdx, endIdx);
+
+  // Configuration matching year view
+  const daysPerRow = 30;
+  const rowHeight = 50;
+  const dayWidth = 100 / daysPerRow;
+
+  // Calculate total days for all years on this page
+  let totalDays = 0;
+  const yearDayOffsets = {};
+  pageYears.forEach(year => {
+    yearDayOffsets[year] = totalDays;
+    const yearInt = parseInt(year);
+    const isLeapYear = (yearInt % 4 === 0 && yearInt % 100 !== 0) || (yearInt % 400 === 0);
+    totalDays += isLeapYear ? 366 : 365;
+  });
+
+  const totalRows = Math.ceil(totalDays / daysPerRow);
+
+  // Pagination controls
+  const pageControls = totalPages > 1 ? `
+    <div class="all-years-pagination">
+      <button class="nav-btn" id="prev-years-page" ${currentAllYearsPage === 0 ? 'disabled' : ''}>← Previous 5 Years</button>
+      <span class="page-indicator">Page ${currentAllYearsPage + 1} of ${totalPages}</span>
+      <button class="nav-btn" id="next-years-page" ${currentAllYearsPage >= totalPages - 1 ? 'disabled' : ''}>Next 5 Years →</button>
+    </div>
+  ` : '';
 
   container.innerHTML = `
-    <div class="all-years-container">
-      <div class="all-years-grid" id="all-years-grid"></div>
+    ${pageControls}
+    <div class="year-strips-container all-years-expanded">
+      <div class="year-strips" id="year-strips"></div>
     </div>
     ${getLegendHTML(true)}
   `;
 
-  const grid = document.getElementById('all-years-grid');
+  // Add pagination event listeners
+  if (totalPages > 1) {
+    document.getElementById('prev-years-page')?.addEventListener('click', () => {
+      if (currentAllYearsPage > 0) {
+        currentAllYearsPage--;
+        renderAllYearsView();
+      }
+    });
+    document.getElementById('next-years-page')?.addEventListener('click', () => {
+      if (currentAllYearsPage < totalPages - 1) {
+        currentAllYearsPage++;
+        renderAllYearsView();
+      }
+    });
+  }
 
-  years.forEach(year => {
-    const yearData = filterByYear(filteredData, year);
+  const stripsContainer = document.getElementById('year-strips');
+
+  // Build a continuous day array for all years on this page
+  const allDaysData = [];
+  pageYears.forEach(year => {
     const yearInt = parseInt(year);
     const isLeapYear = (yearInt % 4 === 0 && yearInt % 100 !== 0) || (yearInt % 400 === 0);
     const daysInYear = isLeapYear ? 366 : 365;
+    const yearData = filterByYear(filteredData, year);
 
-    const yearSection = document.createElement('div');
-    yearSection.className = 'all-years-year';
-
-    const yearLabel = document.createElement('div');
-    yearLabel.className = 'all-years-label';
-    yearLabel.textContent = year;
-    yearSection.appendChild(yearLabel);
-
-    const stripContainer = document.createElement('div');
-    stripContainer.className = 'all-years-strip';
-
-    // Create a single continuous strip for the entire year
     for (let dayOfYear = 0; dayOfYear < daysInYear; dayOfYear++) {
       const date = new Date(yearInt, 0, dayOfYear + 1);
       const dateStr = getDayKey(date);
       const dayActivities = yearData.filter(item => getDayKey(item.start) === dateStr);
 
-      const daySlice = document.createElement('div');
-      daySlice.className = 'all-years-day';
+      allDaysData.push({
+        date,
+        dateStr,
+        year: yearInt,
+        month: date.getMonth(),
+        dayOfYear,
+        isFirstDayOfYear: dayOfYear === 0,
+        isFirstDayOfMonth: date.getDate() === 1,
+        activities: dayActivities
+      });
+    }
+  });
 
-      dayActivities.forEach(item => {
+  // Create rows
+  for (let row = 0; row < totalRows; row++) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'year-strip-row';
+    rowDiv.style.height = `${rowHeight}px`;
+
+    const startDay = row * daysPerRow;
+    const endDay = Math.min(startDay + daysPerRow, totalDays);
+
+    let lastMonth = -1;
+    let lastYear = -1;
+
+    for (let dayIdx = startDay; dayIdx < endDay; dayIdx++) {
+      const dayData = allDaysData[dayIdx];
+      if (!dayData) continue;
+
+      const dayInRow = dayIdx - startDay;
+
+      // Year label (at start of each year)
+      if (dayData.isFirstDayOfYear || (dayIdx === startDay && dayData.year !== lastYear)) {
+        const yearLabel = document.createElement('div');
+        yearLabel.className = 'year-strip-year-label';
+        yearLabel.style.left = `${dayInRow * dayWidth}%`;
+        yearLabel.textContent = dayData.year;
+        rowDiv.appendChild(yearLabel);
+        lastYear = dayData.year;
+      }
+
+      // Month label (at start of each month)
+      if (dayData.isFirstDayOfMonth || (dayIdx === startDay && dayData.month !== lastMonth)) {
+        const monthLabel = document.createElement('div');
+        monthLabel.className = 'year-strip-month-label';
+        monthLabel.style.left = `${dayInRow * dayWidth}%`;
+        monthLabel.textContent = dayData.date.toLocaleDateString('en-US', { month: 'short' });
+        rowDiv.appendChild(monthLabel);
+        lastMonth = dayData.month;
+      }
+
+      // Render activities
+      dayData.activities.forEach(item => {
         const start = new Date(item.start);
         const dayStart = getDayStart(start);
 
         const timeStart = (start - dayStart) / (24 * 60 * 60 * 1000);
         const duration = item.duration / (24 * 60);
 
+        const leftPos = (dayInRow + timeStart) * dayWidth;
+        const width = Math.max(duration * dayWidth, 0.15);
+
         const color = getCategoryColor(item.category, item.pillar);
 
         const block = document.createElement('div');
-        block.className = 'all-years-block';
-        block.style.top = `${timeStart * 100}%`;
-        block.style.height = `${Math.max(duration * 100, 2)}%`;
+        block.className = 'year-strip-block';
+        block.style.left = `${leftPos}%`;
+        block.style.width = `${width}%`;
         block.style.background = color;
 
-        addBlockEvents(block, item);
-        daySlice.appendChild(block);
-      });
+        if (showEnergyHeight) {
+          const heightPercent = 30 + (item.energyRating / 10) * 70;
+          block.style.height = `${heightPercent}%`;
+          block.style.top = `${(100 - heightPercent) / 2}%`;
+        }
 
-      stripContainer.appendChild(daySlice);
+        addBlockEvents(block, item);
+        rowDiv.appendChild(block);
+      });
     }
 
-    yearSection.appendChild(stripContainer);
-    grid.appendChild(yearSection);
-  });
+    stripsContainer.appendChild(rowDiv);
+  }
 
-  updatePeriodLabel(`All Years (${years[0]}–${years[years.length - 1]})`);
+  const rangeStart = pageYears[0];
+  const rangeEnd = pageYears[pageYears.length - 1];
+  updatePeriodLabel(`${rangeStart}–${rangeEnd} (${pageYears.length} years)`);
 }
 
 // ==================== REFLECTIONS BUBBLE CHART ====================

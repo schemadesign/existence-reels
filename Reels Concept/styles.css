@@ -421,6 +421,51 @@ h1 {
   font-weight: 500;
 }
 
+.year-strip-year-label {
+  position: absolute;
+  top: -38px;
+  font-size: 0.85rem;
+  color: #4a9eff;
+  font-weight: 600;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+/* All Years Expanded View */
+.all-years-expanded {
+  max-height: none;
+}
+
+.all-years-expanded .year-strips {
+  padding-top: 2.5rem;
+  gap: 8px;
+}
+
+.all-years-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #111;
+  border-radius: 6px;
+}
+
+.all-years-pagination .nav-btn {
+  padding: 0.5rem 1rem;
+}
+
+.all-years-pagination .nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-indicator {
+  font-size: 0.8rem;
+  color: #888;
+}
+
 /* Legacy month columns (keeping for compatibility) */
 .month-column {
   display: inline-block;
