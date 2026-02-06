@@ -353,10 +353,10 @@ function addBlockEvents(block, item) {
   block.addEventListener('mouseleave', hideTooltip);
 }
 
-// Get color for a category
+// Get color for a category (uses pillar colors)
 function getCategoryColor(category, pillar) {
-  const lowerCat = category.toLowerCase();
-  return categoryColors[lowerCat] || categoryColors[category] || pillarColors[pillar] || '#888';
+  // Use pillar color for all activities
+  return pillarColors[pillar] || pillarColors[getPillarForCategory(category)] || '#888';
 }
 
 // Create a timeblock element
@@ -432,7 +432,7 @@ function renderDayView(dayStr) {
         <div class="timeline-axis"></div>
       </div>
     </div>
-    ${getLegendHTML(true)}
+    ${getLegendHTML()}
   `;
 
   const timeline = document.getElementById('timeline');
@@ -481,7 +481,7 @@ function renderWeekView(weekKey) {
         <div class="timeline-axis"></div>
       </div>
     </div>
-    ${getLegendHTML(true)}
+    ${getLegendHTML()}
   `;
 
   const timeline = document.getElementById('timeline');
@@ -556,7 +556,7 @@ function renderMonthView(monthKey) {
     `;
   });
 
-  html += `</div>${getLegendHTML(true)}`;
+  html += `</div>${getLegendHTML()}`;
   container.innerHTML = html;
 
   // Add blocks to each week
@@ -620,7 +620,7 @@ function renderYearView(year) {
     <div class="year-strips-container">
       <div class="year-strips" id="year-strips"></div>
     </div>
-    ${getLegendHTML(true)}
+    ${getLegendHTML()}
   `;
 
   const stripsContainer = document.getElementById('year-strips');
@@ -739,7 +739,7 @@ function renderAllYearsView() {
     <div class="year-strips-container all-years-expanded">
       <div class="year-strips" id="year-strips"></div>
     </div>
-    ${getLegendHTML(true)}
+    ${getLegendHTML()}
   `;
 
   // Add pagination event listeners
