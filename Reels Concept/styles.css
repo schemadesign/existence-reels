@@ -1269,3 +1269,81 @@ h1 {
   color: #bbb;
   font-style: italic;
 }
+
+/* Audio Sequencer Controls */
+.sequencer-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #151515 0%, #1a1a1a 100%);
+  border-radius: 8px;
+  border: 1px solid #252525;
+}
+
+.play-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%);
+  border: 1px solid #4a9eff;
+  color: #4a9eff;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.play-btn:hover {
+  background: linear-gradient(135deg, #3a4a5a 0%, #2a3a4a 100%);
+  color: #6ab0ff;
+  transform: scale(1.02);
+}
+
+.play-btn:active {
+  transform: scale(0.98);
+}
+
+.play-icon {
+  font-size: 0.9rem;
+}
+
+.progress-bar {
+  flex: 1;
+  max-width: 300px;
+  height: 6px;
+  background: #252525;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4a9eff, #6ab0ff);
+  border-radius: 3px;
+  transition: width 0.05s linear;
+}
+
+.sound-legend {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.sound-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sound-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

@@ -7,6 +7,248 @@ const pillarColors = {
   sleep: '#8B6B8B'
 };
 
+// ==================== AUDIO SEQUENCER ====================
+let audioContext = null;
+let isPlaying = false;
+let playbackTimeout = null;
+
+// Initialize audio context on user interaction
+function initAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+}
+
+// Synthesize drum sounds using Web Audio API
+function playKick(time = 0) {
+  // Punchy kick drum for Work
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+
+  osc.frequency.setValueAtTime(150, audioContext.currentTime + time);
+  osc.frequency.exponentialRampToValueAtTime(40, audioContext.currentTime + time + 0.1);
+
+  gain.gain.setValueAtTime(0.8, audioContext.currentTime + time);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
+
+  osc.start(audioContext.currentTime + time);
+  osc.stop(audioContext.currentTime + time + 0.3);
+}
+
+function playHiHat(time = 0) {
+  // Rhythmic hi-hat for Life
+  const bufferSize = audioContext.sampleRate * 0.05;
+  const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const noise = audioContext.createBufferSource();
+  const filter = audioContext.createBiquadFilter();
+  const gain = audioContext.createGain();
+
+  noise.buffer = buffer;
+  filter.type = 'highpass';
+  filter.frequency.value = 8000;
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioContext.destination);
+
+  gain.gain.setValueAtTime(0.3, audioContext.currentTime + time);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.05);
+
+  noise.start(audioContext.currentTime + time);
+  noise.stop(audioContext.currentTime + time + 0.05);
+}
+
+function playSnare(time = 0) {
+  // Sharp snare for Health
+  const osc = audioContext.createOscillator();
+  const oscGain = audioContext.createGain();
+
+  osc.type = 'triangle';
+  osc.frequency.value = 180;
+
+  osc.connect(oscGain);
+  oscGain.connect(audioContext.destination);
+
+  oscGain.gain.setValueAtTime(0.5, audioContext.currentTime + time);
+  oscGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.1);
+
+  osc.start(audioContext.currentTime + time);
+  osc.stop(audioContext.currentTime + time + 0.1);
+
+  // Add noise burst
+  const bufferSize = audioContext.sampleRate * 0.1;
+  const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const noise = audioContext.createBufferSource();
+  const noiseGain = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+
+  noise.buffer = buffer;
+  filter.type = 'bandpass';
+  filter.frequency.value = 3000;
+
+  noise.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(audioContext.destination);
+
+  noiseGain.gain.setValueAtTime(0.4, audioContext.currentTime + time);
+  noiseGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.15);
+
+  noise.start(audioContext.currentTime + time);
+  noise.stop(audioContext.currentTime + time + 0.15);
+}
+
+function playBass(time = 0) {
+  // Long bass sound for Sleep
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(60, audioContext.currentTime + time);
+
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+
+  gain.gain.setValueAtTime(0.6, audioContext.currentTime + time);
+  gain.gain.setValueAtTime(0.6, audioContext.currentTime + time + 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.8);
+
+  osc.start(audioContext.currentTime + time);
+  osc.stop(audioContext.currentTime + time + 0.8);
+}
+
+function playPillarSound(pillar, time = 0) {
+  switch(pillar) {
+    case 'work': playKick(time); break;
+    case 'life': playHiHat(time); break;
+    case 'health': playSnare(time); break;
+    case 'sleep': playBass(time); break;
+  }
+}
+
+// Sequencer playback
+function playSequence(activities, durationMs, onProgress, onComplete) {
+  initAudio();
+  isPlaying = true;
+
+  // Sort activities by start time
+  const sorted = [...activities].sort((a, b) => new Date(a.start) - new Date(b.start));
+  if (sorted.length === 0) {
+    isPlaying = false;
+    if (onComplete) onComplete();
+    return;
+  }
+
+  const startTime = new Date(sorted[0].start).getTime();
+  const endTime = new Date(sorted[sorted.length - 1].start).getTime();
+  const timeRange = endTime - startTime || 1;
+
+  // Schedule all sounds
+  const playbackDuration = durationMs / 1000; // Convert to seconds
+
+  sorted.forEach(activity => {
+    const activityTime = new Date(activity.start).getTime();
+    const normalizedTime = (activityTime - startTime) / timeRange;
+    const scheduleTime = normalizedTime * playbackDuration;
+
+    const pillar = activity.pillar || getPillarForCategory(activity.category);
+    playPillarSound(pillar, scheduleTime);
+  });
+
+  // Progress indicator
+  let elapsed = 0;
+  const progressInterval = 50;
+  const progressTimer = setInterval(() => {
+    elapsed += progressInterval;
+    const progress = Math.min(elapsed / durationMs, 1);
+    if (onProgress) onProgress(progress);
+
+    if (elapsed >= durationMs) {
+      clearInterval(progressTimer);
+      isPlaying = false;
+      if (onComplete) onComplete();
+    }
+  }, progressInterval);
+
+  playbackTimeout = progressTimer;
+}
+
+function stopSequence() {
+  if (playbackTimeout) {
+    clearInterval(playbackTimeout);
+    playbackTimeout = null;
+  }
+  isPlaying = false;
+}
+
+// Get play button HTML
+function getPlayButtonHTML() {
+  return `
+    <div class="sequencer-controls">
+      <button class="play-btn" id="play-sequence-btn">
+        <span class="play-icon">▶</span>
+        <span class="play-text">Play Rhythm</span>
+      </button>
+      <div class="progress-bar" id="sequence-progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="sound-legend">
+        <span class="sound-item"><span class="sound-dot" style="background: ${pillarColors.work}"></span>Kick</span>
+        <span class="sound-item"><span class="sound-dot" style="background: ${pillarColors.life}"></span>Hat</span>
+        <span class="sound-item"><span class="sound-dot" style="background: ${pillarColors.health}"></span>Snare</span>
+        <span class="sound-item"><span class="sound-dot" style="background: ${pillarColors.sleep}"></span>Bass</span>
+      </div>
+    </div>
+  `;
+}
+
+function attachPlayButton(activities, durationMs = 8000) {
+  const btn = document.getElementById('play-sequence-btn');
+  const progressFill = document.getElementById('progress-fill');
+
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    if (isPlaying) {
+      stopSequence();
+      btn.innerHTML = '<span class="play-icon">▶</span><span class="play-text">Play Rhythm</span>';
+      progressFill.style.width = '0%';
+      return;
+    }
+
+    btn.innerHTML = '<span class="play-icon">◼</span><span class="play-text">Stop</span>';
+
+    playSequence(
+      activities,
+      durationMs,
+      (progress) => {
+        progressFill.style.width = `${progress * 100}%`;
+      },
+      () => {
+        btn.innerHTML = '<span class="play-icon">▶</span><span class="play-text">Play Rhythm</span>';
+        progressFill.style.width = '0%';
+      }
+    );
+  });
+}
+
 // Activity colors matching the app's activity list
 const categoryColors = {
   // C
@@ -433,6 +675,7 @@ function renderDayView(dayStr) {
       </div>
     </div>
     ${getLegendHTML()}
+    ${getPlayButtonHTML()}
   `;
 
   const timeline = document.getElementById('timeline');
@@ -456,6 +699,7 @@ function renderDayView(dayStr) {
     timeline.appendChild(createBlock(item, leftPos, width, item.energyRating, 200));
   });
 
+  attachPlayButton(dayData, 5000); // 5 seconds for a day
   updatePeriodLabel(displayDate);
 }
 
@@ -482,6 +726,7 @@ function renderWeekView(weekKey) {
       </div>
     </div>
     ${getLegendHTML()}
+    ${getPlayButtonHTML()}
   `;
 
   const timeline = document.getElementById('timeline');
@@ -520,6 +765,7 @@ function renderWeekView(weekKey) {
     timeline.appendChild(createBlock(item, leftPos, width, item.energyRating, 160));
   });
 
+  attachPlayButton(weekData, 10000); // 10 seconds for a week
   updatePeriodLabel(displayLabel);
 }
 
@@ -556,7 +802,7 @@ function renderMonthView(monthKey) {
     `;
   });
 
-  html += `</div>${getLegendHTML()}`;
+  html += `</div>${getLegendHTML()}${getPlayButtonHTML()}`;
   container.innerHTML = html;
 
   // Add blocks to each week
@@ -597,6 +843,7 @@ function renderMonthView(monthKey) {
     });
   });
 
+  attachPlayButton(monthData, 15000); // 15 seconds for a month
   updatePeriodLabel(displayLabel);
 }
 
@@ -621,6 +868,7 @@ function renderYearView(year) {
       <div class="year-strips" id="year-strips"></div>
     </div>
     ${getLegendHTML()}
+    ${getPlayButtonHTML()}
   `;
 
   const stripsContainer = document.getElementById('year-strips');
@@ -692,6 +940,7 @@ function renderYearView(year) {
     stripsContainer.appendChild(rowDiv);
   }
 
+  attachPlayButton(yearData, 20000); // 20 seconds for a year
   updatePeriodLabel(year);
 }
 
@@ -740,6 +989,7 @@ function renderAllYearsView() {
       <div class="year-strips" id="year-strips"></div>
     </div>
     ${getLegendHTML()}
+    ${getPlayButtonHTML()}
   `;
 
   // Add pagination event listeners
@@ -856,6 +1106,14 @@ function renderAllYearsView() {
 
     stripsContainer.appendChild(rowDiv);
   }
+
+  // Collect all activities for this page's years
+  const pageActivities = filteredData.filter(item => {
+    const year = new Date(item.start).getFullYear();
+    return pageYears.includes(year);
+  });
+
+  attachPlayButton(pageActivities, 30000); // 30 seconds for multiple years
 
   const rangeStart = pageYears[0];
   const rangeEnd = pageYears[pageYears.length - 1];
