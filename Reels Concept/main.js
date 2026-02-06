@@ -1439,21 +1439,21 @@ function buildReflectionHierarchy() {
   };
 }
 
-// Theme colors
+// Theme colors - mapped to pillar colors
 const themeColors = {
-  'productivity': '#4a9eff',
-  'wellbeing': '#50c878',
-  'growth': '#ffaa50',
-  'connection': '#f7c59f',
-  'creativity': '#e8a87c',
-  'challenge': '#e07070',
-  'gratitude': '#a8d5ba',
-  'achievement': '#f6c065',
-  'mindfulness': '#b8d4e8',
-  'balance': '#c9b1ff',
-  'exercise': '#85dcb8',
-  'planning': '#82b4e5',
-  'general': '#888888'
+  'productivity': pillarColors.work,      // Work
+  'planning': pillarColors.work,          // Work
+  'achievement': pillarColors.work,       // Work
+  'challenge': pillarColors.work,         // Work
+  'connection': pillarColors.life,        // Life
+  'creativity': pillarColors.life,        // Life
+  'gratitude': pillarColors.life,         // Life
+  'wellbeing': pillarColors.health,       // Health
+  'growth': pillarColors.health,          // Health
+  'exercise': pillarColors.health,        // Health
+  'mindfulness': pillarColors.health,     // Health
+  'balance': pillarColors.sleep,          // Sleep
+  'general': pillarColors.sleep           // Sleep
 };
 
 // Render packed circles using D3
