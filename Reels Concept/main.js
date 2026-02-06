@@ -2105,6 +2105,20 @@ function exportSVG() {
   } else if (currentView === 'year') {
     width = 2000;
     height = 800;
+  } else if (currentView === 'month') {
+    // Calculate weeks in the month
+    const [year, month] = currentMonth.split('-').map(Number);
+    const monthStart = new Date(year, month - 1, 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const numWeeks = Math.ceil((daysInMonth + monthStart.getDay()) / 7);
+    width = 1600;
+    height = numWeeks * 90 + 200; // 90px per week row + header/legend
+  } else if (currentView === 'week') {
+    width = 1600;
+    height = 450;
+  } else if (currentView === 'day') {
+    width = 1600;
+    height = 450;
   } else {
     width = 1600;
     height = 500;
@@ -2240,9 +2254,187 @@ function exportSVG() {
     const legendY = startY + totalRows * (rowHeight + rowGap) + 20;
     svg += renderLegendSVG(40, legendY, width - 80);
 
+  } else if (currentView === 'month') {
+    // Export Month view
+    const [year, month] = currentMonth.split('-').map(Number);
+    const monthData = filterByMonth(filteredData, currentMonth);
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0);
+    const daysInMonth = monthEnd.getDate();
+
+    // Group data by week
+    const weeks = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month - 1, d);
+      const weekNum = Math.ceil((d + monthStart.getDay()) / 7);
+      if (!weeks[weekNum]) weeks[weekNum] = { start: d, end: d, days: [] };
+      weeks[weekNum].end = d;
+      weeks[weekNum].days.push(d);
+    }
+
+    const weekEntries = Object.entries(weeks);
+    const rowHeight = 60;
+    const rowGap = 30;
+    const stripWidth = width - 140;
+    const labelWidth = 80;
+
+    weekEntries.forEach(([weekNum, week], weekIdx) => {
+      const y = startY + weekIdx * (rowHeight + rowGap);
+      const weekDays = week.days.length;
+
+      // Week label
+      svg += `<text class="year-label" x="${labelWidth - 10}" y="${y + rowHeight / 2 + 5}" text-anchor="end">Week ${weekNum}</text>`;
+
+      // Row background
+      svg += `<rect x="${labelWidth}" y="${y}" width="${stripWidth}" height="${rowHeight}" fill="#0d0d0d" rx="3"/>`;
+
+      // Day labels and dividers
+      week.days.forEach((d, i) => {
+        const dayX = labelWidth + (i / weekDays) * stripWidth;
+        const dayW = stripWidth / weekDays;
+
+        // Day number label
+        svg += `<text class="month-label" x="${dayX + dayW / 2}" y="${y - 8}" text-anchor="middle">${d}</text>`;
+
+        // Day divider (except first)
+        if (i > 0) {
+          svg += `<line x1="${dayX}" y1="${y}" x2="${dayX}" y2="${y + rowHeight}" stroke="#222" stroke-width="1"/>`;
+        }
+      });
+
+      // Activities for this week
+      const weekData = monthData.filter(item => {
+        const d = new Date(item.start).getDate();
+        return week.days.includes(d);
+      });
+
+      weekData.forEach(item => {
+        const start = new Date(item.start);
+        const dayOfMonth = start.getDate();
+        const dayIndex = week.days.indexOf(dayOfMonth);
+        const dayStart = getDayStart(start);
+
+        const dayOffset = (dayIndex / weekDays) * stripWidth;
+        const timeInDay = (start - dayStart) / (24 * 60 * 60 * 1000);
+        const durationInDay = item.duration / (24 * 60);
+
+        const blockX = labelWidth + dayOffset + (timeInDay / weekDays) * stripWidth;
+        const blockW = Math.max((durationInDay / weekDays) * stripWidth, 2);
+        const color = getCategoryColor(item.category, item.pillar);
+
+        let blockH = rowHeight;
+        let blockY = y;
+        if (showEnergyHeight) {
+          const heightPercent = 0.3 + (item.energyRating / 10) * 0.7;
+          blockH = rowHeight * heightPercent;
+          blockY = y + (rowHeight - blockH) / 2;
+        }
+
+        svg += `<rect x="${blockX}" y="${blockY}" width="${blockW}" height="${blockH}" fill="${color}" rx="1"/>`;
+      });
+    });
+
+    // Legend
+    const legendY = startY + weekEntries.length * (rowHeight + rowGap) + 20;
+    svg += renderLegendSVG(40, legendY, width - 80);
+
+  } else if (currentView === 'week') {
+    // Export Week view
+    const weekData = filterByWeek(filteredData, currentWeek);
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const rowHeight = 200;
+    const stripWidth = width - 80;
+
+    // Row background
+    svg += `<rect x="40" y="${startY}" width="${stripWidth}" height="${rowHeight}" fill="#0d0d0d" rx="3"/>`;
+
+    // Day labels and dividers
+    days.forEach((day, i) => {
+      const dayX = 40 + (i / 7) * stripWidth;
+      const dayW = stripWidth / 7;
+
+      // Day name label
+      svg += `<text class="month-label" x="${dayX + dayW / 2}" y="${startY - 10}" text-anchor="middle">${day}</text>`;
+
+      // Day divider (except first)
+      if (i > 0) {
+        svg += `<line x1="${dayX}" y1="${startY}" x2="${dayX}" y2="${startY + rowHeight}" stroke="#222" stroke-width="1"/>`;
+      }
+    });
+
+    // Activities
+    weekData.forEach(item => {
+      const start = new Date(item.start);
+      const dayOfWeek = start.getDay();
+      const dayStart = getDayStart(start);
+
+      const dayOffset = (dayOfWeek / 7) * stripWidth;
+      const timeInDay = (start - dayStart) / (24 * 60 * 60 * 1000);
+      const durationInDay = item.duration / (24 * 60);
+
+      const blockX = 40 + dayOffset + (timeInDay / 7) * stripWidth;
+      const blockW = Math.max((durationInDay / 7) * stripWidth, 2);
+      const color = getCategoryColor(item.category, item.pillar);
+
+      let blockH = rowHeight;
+      let blockY = startY;
+      if (showEnergyHeight) {
+        const heightPercent = 0.3 + (item.energyRating / 10) * 0.7;
+        blockH = rowHeight * heightPercent;
+        blockY = startY + (rowHeight - blockH) / 2;
+      }
+
+      svg += `<rect x="${blockX}" y="${blockY}" width="${blockW}" height="${blockH}" fill="${color}" rx="1"/>`;
+    });
+
+    // Legend
+    const legendY = startY + rowHeight + 40;
+    svg += renderLegendSVG(40, legendY, width - 80);
+
+  } else if (currentView === 'day') {
+    // Export Day view
+    const dayData = filterByDay(filteredData, currentDate);
+    const dayStart = new Date(currentDate + 'T00:00:00');
+    const rowHeight = 200;
+    const stripWidth = width - 80;
+
+    // Row background
+    svg += `<rect x="40" y="${startY}" width="${stripWidth}" height="${rowHeight}" fill="#0d0d0d" rx="3"/>`;
+
+    // Time labels (every 3 hours)
+    [0, 3, 6, 9, 12, 15, 18, 21, 24].forEach(hour => {
+      const x = 40 + (hour / 24) * stripWidth;
+      const label = hour === 0 || hour === 24 ? '12a' : hour === 12 ? '12p' : hour < 12 ? `${hour}a` : `${hour - 12}p`;
+      svg += `<text class="month-label" x="${x}" y="${startY + rowHeight + 20}" text-anchor="middle">${label}</text>`;
+      svg += `<line x1="${x}" y1="${startY + rowHeight}" x2="${x}" y2="${startY + rowHeight + 5}" stroke="#444" stroke-width="1"/>`;
+    });
+
+    // Activities
+    dayData.forEach(item => {
+      const start = new Date(item.start);
+      const end = new Date(item.end);
+      const leftPos = ((start - dayStart) / (24 * 60 * 60 * 1000)) * stripWidth;
+      const blockW = Math.max(((end - start) / (24 * 60 * 60 * 1000)) * stripWidth, 2);
+      const color = getCategoryColor(item.category, item.pillar);
+
+      let blockH = rowHeight;
+      let blockY = startY;
+      if (showEnergyHeight) {
+        const heightPercent = 0.3 + (item.energyRating / 10) * 0.7;
+        blockH = rowHeight * heightPercent;
+        blockY = startY + (rowHeight - blockH) / 2;
+      }
+
+      svg += `<rect x="${40 + leftPos}" y="${blockY}" width="${blockW}" height="${blockH}" fill="${color}" rx="2"/>`;
+    });
+
+    // Legend
+    const legendY = startY + rowHeight + 50;
+    svg += renderLegendSVG(40, legendY, width - 80);
+
   } else {
-    // Export Day/Week/Month views (simplified)
-    svg += `<text class="subtitle" x="${width/2}" y="${height/2}" text-anchor="middle">Use Year or All Years view for best SVG export</text>`;
+    // Fallback for unsupported views
+    svg += `<text class="subtitle" x="${width/2}" y="${height/2}" text-anchor="middle">SVG export not available for this view</text>`;
   }
 
   svg += '</svg>';
