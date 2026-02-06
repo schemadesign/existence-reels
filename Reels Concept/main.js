@@ -11,6 +11,7 @@ const pillarColors = {
 let audioContext = null;
 let isPlaying = false;
 let playbackTimeout = null;
+let scheduledNodes = []; // Track all scheduled audio nodes for stopping
 
 // Initialize audio context on user interaction
 function initAudio() {
@@ -20,6 +21,11 @@ function initAudio() {
   if (audioContext.state === 'suspended') {
     audioContext.resume();
   }
+}
+
+// Track audio node for later stopping
+function trackNode(node, gainNode) {
+  scheduledNodes.push({ node, gainNode });
 }
 
 // Synthesize drum sounds using Web Audio API
@@ -39,6 +45,8 @@ function playKick(time = 0) {
 
   osc.start(audioContext.currentTime + time);
   osc.stop(audioContext.currentTime + time + 0.3);
+
+  trackNode(osc, gain);
 }
 
 function playHiHat(time = 0) {
@@ -68,6 +76,8 @@ function playHiHat(time = 0) {
 
   noise.start(audioContext.currentTime + time);
   noise.stop(audioContext.currentTime + time + 0.05);
+
+  trackNode(noise, gain);
 }
 
 function playSnare(time = 0) {
@@ -86,6 +96,8 @@ function playSnare(time = 0) {
 
   osc.start(audioContext.currentTime + time);
   osc.stop(audioContext.currentTime + time + 0.1);
+
+  trackNode(osc, oscGain);
 
   // Add noise burst
   const bufferSize = audioContext.sampleRate * 0.1;
@@ -113,6 +125,8 @@ function playSnare(time = 0) {
 
   noise.start(audioContext.currentTime + time);
   noise.stop(audioContext.currentTime + time + 0.15);
+
+  trackNode(noise, noiseGain);
 }
 
 function playBass(time = 0) {
@@ -132,6 +146,8 @@ function playBass(time = 0) {
 
   osc.start(audioContext.currentTime + time);
   osc.stop(audioContext.currentTime + time + 0.8);
+
+  trackNode(osc, gain);
 }
 
 function playPillarSound(pillar, time = 0) {
@@ -147,6 +163,7 @@ function playPillarSound(pillar, time = 0) {
 function playSequence(activities, durationMs, onProgress, onComplete) {
   initAudio();
   isPlaying = true;
+  scheduledNodes = []; // Clear any previous nodes
 
   // Sort activities by start time
   const sorted = [...activities].sort((a, b) => new Date(a.start) - new Date(b.start));
@@ -183,6 +200,7 @@ function playSequence(activities, durationMs, onProgress, onComplete) {
     if (elapsed >= durationMs) {
       clearInterval(progressTimer);
       isPlaying = false;
+      scheduledNodes = [];
       if (onComplete) onComplete();
     }
   }, progressInterval);
@@ -191,10 +209,28 @@ function playSequence(activities, durationMs, onProgress, onComplete) {
 }
 
 function stopSequence() {
+  // Stop the progress timer
   if (playbackTimeout) {
     clearInterval(playbackTimeout);
     playbackTimeout = null;
   }
+
+  // Stop all scheduled audio nodes immediately
+  scheduledNodes.forEach(({ node, gainNode }) => {
+    try {
+      // Immediately silence by setting gain to 0
+      if (gainNode) {
+        gainNode.gain.cancelScheduledValues(audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      }
+      // Stop the node
+      node.stop(audioContext.currentTime);
+    } catch (e) {
+      // Node may have already stopped, ignore errors
+    }
+  });
+  scheduledNodes = [];
+
   isPlaying = false;
 }
 
