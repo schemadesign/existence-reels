@@ -1347,3 +1347,51 @@ h1 {
   height: 8px;
   border-radius: 50%;
 }
+
+/* Playhead */
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  z-index: 100;
+  pointer-events: none;
+  transition: left 0.05s linear;
+}
+
+.playhead-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #4a9eff;
+  box-shadow: 0 0 8px rgba(74, 158, 255, 0.8);
+}
+
+.playhead-glow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 10px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(74, 158, 255, 0.3),
+    rgba(74, 158, 255, 0.5),
+    rgba(74, 158, 255, 0.3),
+    transparent
+  );
+  animation: playhead-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes playhead-pulse {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+.playhead-fade-out {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}

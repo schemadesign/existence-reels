@@ -225,14 +225,47 @@ function attachPlayButton(activities, durationMs = 8000) {
 
   if (!btn) return;
 
+  // Find the timeline container to add playhead
+  const timelineContainer = document.querySelector('.timeline-container, .year-strips-container, .month-weeks');
+  let playhead = null;
+
+  function createPlayhead() {
+    if (playhead) playhead.remove();
+    playhead = document.createElement('div');
+    playhead.className = 'playhead';
+    playhead.innerHTML = '<div class="playhead-line"></div><div class="playhead-glow"></div>';
+    if (timelineContainer) {
+      timelineContainer.style.position = 'relative';
+      timelineContainer.appendChild(playhead);
+    }
+  }
+
+  function updatePlayhead(progress) {
+    if (playhead) {
+      playhead.style.left = `${progress * 100}%`;
+    }
+  }
+
+  function removePlayhead() {
+    if (playhead) {
+      playhead.classList.add('playhead-fade-out');
+      setTimeout(() => {
+        if (playhead) playhead.remove();
+        playhead = null;
+      }, 300);
+    }
+  }
+
   btn.addEventListener('click', () => {
     if (isPlaying) {
       stopSequence();
       btn.innerHTML = '<span class="play-icon">▶</span><span class="play-text">Play Rhythm</span>';
       progressFill.style.width = '0%';
+      removePlayhead();
       return;
     }
 
+    createPlayhead();
     btn.innerHTML = '<span class="play-icon">◼</span><span class="play-text">Stop</span>';
 
     playSequence(
@@ -240,10 +273,12 @@ function attachPlayButton(activities, durationMs = 8000) {
       durationMs,
       (progress) => {
         progressFill.style.width = `${progress * 100}%`;
+        updatePlayhead(progress);
       },
       () => {
         btn.innerHTML = '<span class="play-icon">▶</span><span class="play-text">Play Rhythm</span>';
         progressFill.style.width = '0%';
+        removePlayhead();
       }
     );
   });
