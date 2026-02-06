@@ -1,10 +1,10 @@
 const container = document.getElementById('visualization');
 
 const pillarColors = {
-  work: '#4a9eff',
-  life: '#50c878',
-  health: '#ffaa50',
-  sleep: '#b482ff'
+  work: '#7B7B9E',
+  life: '#C9A227',
+  health: '#5EAA7D',
+  sleep: '#8B6B8B'
 };
 
 // Activity colors matching the app's activity list
@@ -1346,10 +1346,10 @@ function renderActivityReflectionsTreemap() {
   const totalReflections = filteredData.filter(i => i.reflection).length;
 
   const pillarColorsLocal = {
-    'work': '#4a9eff',
-    'life': '#50c878',
-    'health': '#ffaa50',
-    'sleep': '#b482ff'
+    'work': '#7B7B9E',
+    'life': '#C9A227',
+    'health': '#5EAA7D',
+    'sleep': '#8B6B8B'
   };
 
   container.innerHTML = `
