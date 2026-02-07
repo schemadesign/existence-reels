@@ -1158,6 +1158,9 @@ h1 {
 .packed-bubble-count {
   font-size: 0.75rem;
   color: #555;
+}
+
+.bubble-filter-container {
   margin-left: auto;
 }
 
@@ -1176,6 +1179,32 @@ h1 {
   background: #222;
   color: #fff;
   border-color: #4a9eff;
+}
+
+.bubble-time-filter {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #ccc;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bubble-time-filter:hover {
+  border-color: #4a9eff;
+}
+
+.bubble-time-filter:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.bubble-time-filter option {
+  background: #1a1a1a;
+  color: #ccc;
 }
 
 .packed-bubble-breadcrumb {

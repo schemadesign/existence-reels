@@ -1315,6 +1315,38 @@ function renderReflectionsBubbleChart() {
 
 // State for drill-down navigation
 let bubbleNavStack = [];
+let bubbleTimePeriod = 'all'; // 'day', 'week', 'month', 'year', 'all'
+
+// Filter reflections based on selected time period
+function filterReflectionsByTimePeriod(data, period) {
+  if (period === 'all') return data;
+
+  const now = new Date();
+  let cutoff;
+
+  switch (period) {
+    case 'day':
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case 'week':
+      const dayOfWeek = now.getDay();
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+      break;
+    case 'month':
+      cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case 'year':
+      cutoff = new Date(now.getFullYear(), 0, 1);
+      break;
+    default:
+      return data;
+  }
+
+  return data.filter(item => {
+    const itemDate = new Date(item.start);
+    return itemDate >= cutoff;
+  });
+}
 
 function renderActivityReflectionsBubble() {
   // Reset navigation stack
@@ -1368,7 +1400,8 @@ function getThemeForKeyword(keyword) {
 
 // Build hierarchical data structure
 function buildReflectionHierarchy() {
-  const reflectionsWithText = filteredData.filter(item => item.reflection);
+  const periodFilteredData = filterReflectionsByTimePeriod(filteredData, bubbleTimePeriod);
+  const reflectionsWithText = periodFilteredData.filter(item => item.reflection);
   const totalReflections = reflectionsWithText.length;
 
   // Count keyword occurrences and group reflections
@@ -1439,26 +1472,35 @@ function buildReflectionHierarchy() {
   };
 }
 
-// Theme colors - mapped to pillar colors
+// Theme colors - mapped to pillar colors (using direct hex values to ensure correct colors)
 const themeColors = {
-  'productivity': pillarColors.work,      // Work
-  'planning': pillarColors.work,          // Work
-  'achievement': pillarColors.work,       // Work
-  'challenge': pillarColors.work,         // Work
-  'connection': pillarColors.life,        // Life
-  'creativity': pillarColors.life,        // Life
-  'gratitude': pillarColors.life,         // Life
-  'wellbeing': pillarColors.health,       // Health
-  'growth': pillarColors.health,          // Health
-  'exercise': pillarColors.health,        // Health
-  'mindfulness': pillarColors.health,     // Health
-  'balance': pillarColors.sleep,          // Sleep
-  'general': pillarColors.sleep           // Sleep
+  'productivity': '#7B7B9E',   // Work
+  'planning': '#7B7B9E',       // Work
+  'achievement': '#7B7B9E',    // Work
+  'challenge': '#7B7B9E',      // Work
+  'connection': '#C9A227',     // Life
+  'creativity': '#C9A227',     // Life
+  'gratitude': '#C9A227',      // Life
+  'wellbeing': '#5EAA7D',      // Health
+  'growth': '#5EAA7D',         // Health
+  'exercise': '#5EAA7D',       // Health
+  'mindfulness': '#5EAA7D',    // Health
+  'balance': '#8B6B8B',        // Sleep
+  'general': '#8B6B8B'         // Sleep
 };
 
 // Render packed circles using D3
 function renderPackedCircles(data, title, level = 0) {
-  const totalReflections = filteredData.filter(i => i.reflection).length;
+  const periodFilteredData = filterReflectionsByTimePeriod(filteredData, bubbleTimePeriod);
+  const totalReflections = periodFilteredData.filter(i => i.reflection).length;
+
+  const periodLabels = {
+    'day': 'Today',
+    'week': 'This Week',
+    'month': 'This Month',
+    'year': 'This Year',
+    'all': 'All Time'
+  };
 
   // Container setup
   container.innerHTML = `
@@ -1466,12 +1508,28 @@ function renderPackedCircles(data, title, level = 0) {
       <div class="packed-bubble-header">
         ${bubbleNavStack.length > 0 ? `<button class="bubble-back-btn" id="bubble-back">← Back</button>` : ''}
         <h3 class="packed-bubble-title">${title}</h3>
-        <span class="packed-bubble-count">${totalReflections} total reflections</span>
+        <div class="bubble-filter-container">
+          <select id="bubble-time-filter" class="bubble-time-filter">
+            <option value="day" ${bubbleTimePeriod === 'day' ? 'selected' : ''}>Today</option>
+            <option value="week" ${bubbleTimePeriod === 'week' ? 'selected' : ''}>This Week</option>
+            <option value="month" ${bubbleTimePeriod === 'month' ? 'selected' : ''}>This Month</option>
+            <option value="year" ${bubbleTimePeriod === 'year' ? 'selected' : ''}>This Year</option>
+            <option value="all" ${bubbleTimePeriod === 'all' ? 'selected' : ''}>All Time</option>
+          </select>
+        </div>
+        <span class="packed-bubble-count">${totalReflections} reflections</span>
       </div>
       <div class="packed-bubble-breadcrumb" id="breadcrumb"></div>
       <svg id="packed-circles" class="packed-circles-svg"></svg>
     </div>
   `;
+
+  // Time period filter event
+  document.getElementById('bubble-time-filter').addEventListener('change', (e) => {
+    bubbleTimePeriod = e.target.value;
+    bubbleNavStack = []; // Reset navigation when filter changes
+    renderActivityReflectionsBubble();
+  });
 
   // Breadcrumb
   const breadcrumb = document.getElementById('breadcrumb');
@@ -1574,7 +1632,8 @@ function renderPackedCircles(data, title, level = 0) {
       if (parentTheme && themeColors[parentTheme]) {
         return themeColors[parentTheme];
       }
-      return '#5a6a7a';
+      // Fallback to Sleep pillar color
+      return '#8B6B8B';
     })
     .attr('fill-opacity', 0.7)
     .attr('stroke', '#222')
